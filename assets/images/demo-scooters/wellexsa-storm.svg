@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" role="img" aria-labelledby="title">
+  <title id="title">WELLEXSA STORM demonstration scooter illustration</title>
+  <rect width="900" height="580" fill="#FFFFFF"/>
+  <path d="M54 456H846" stroke="#DDE1E5" stroke-width="2"/>
+  <text x="64" y="82" fill="#777E85" font-family="Arial,sans-serif" font-size="15" letter-spacing="4">WELLEXSA · DEMO COLLECTION</text>
+  <text x="64" y="133" fill="#292D32" font-family="Arial,sans-serif" font-size="42" font-weight="700" letter-spacing="2">STORM</text>
+  <ellipse cx="451" cy="456" rx="278" ry="18" fill="#292D32" opacity=".08"/>
+  <circle cx="258" cy="405" r="66" fill="#151719"/><circle cx="258" cy="405" r="42" fill="#292D32"/><circle cx="258" cy="405" r="14" fill="#C0C0C0"/>
+  <circle cx="660" cy="405" r="66" fill="#151719"/><circle cx="660" cy="405" r="42" fill="#292D32"/><circle cx="660" cy="405" r="14" fill="#C0C0C0"/>
+  <path d="M259 357 345 344 398 312 491 320 560 343 603 335 632 290 650 242 685 248 665 327 632 371 582 385 465 383 407 365 343 376 279 385Z" fill="#151719" stroke="#777E85" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M402 359 571 357 584 384 465 383Z" fill="#777E85"/>
+  <path d="M341 277Q357 254 390 254H473Q499 254 507 275L497 295H350Z" fill="#151719"/>
+  <path d="M429 288 420 337M635 318 657 397M662 250 700 212M687 213H729" fill="none" stroke="#151719" stroke-width="10" stroke-linecap="round"/>
+  <path d="M302 356 380 339M532 348 600 336M414 370 478 374" fill="none" stroke="#C0C0C0" stroke-width="7" stroke-linecap="round"/>
+  <text x="64" y="526" fill="#777E85" font-family="Arial,sans-serif" font-size="13" letter-spacing="2">ILLUSTRATIVE DEMO ART · NOT A PRODUCT PHOTOGRAPH</text>
+</svg>

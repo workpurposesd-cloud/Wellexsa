@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" role="img" aria-labelledby="title">
+  <title id="title">WELLEXSA ZENITH demonstration scooter illustration</title>
+  <rect width="900" height="580" fill="#FFFFFF"/>
+  <path d="M54 456H846" stroke="#DDE1E5" stroke-width="2"/>
+  <text x="64" y="82" fill="#777E85" font-family="Arial,sans-serif" font-size="15" letter-spacing="4">WELLEXSA · DEMO COLLECTION</text>
+  <text x="64" y="133" fill="#292D32" font-family="Arial,sans-serif" font-size="42" font-weight="700" letter-spacing="2">ZENITH</text>
+  <ellipse cx="451" cy="456" rx="272" ry="17" fill="#292D32" opacity=".08"/>
+  <circle cx="264" cy="405" r="64" fill="#151719"/><circle cx="264" cy="405" r="41" fill="#C0C0C0"/><circle cx="264" cy="405" r="13" fill="#777E85"/>
+  <circle cx="658" cy="405" r="64" fill="#151719"/><circle cx="658" cy="405" r="41" fill="#C0C0C0"/><circle cx="658" cy="405" r="13" fill="#777E85"/>
+  <path d="M265 352 350 345 404 321 491 326 555 348 599 341 625 300 644 253 674 260 657 334 624 371 585 384 466 383 410 365 345 376 284 384Z" fill="#DDE1E5" stroke="#292D32" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M410 363 570 360 585 383 466 383Z" fill="#292D32"/>
+  <path d="M346 277Q360 258 389 258H472Q493 258 501 276L492 294H355Z" fill="#777E85"/>
+  <path d="M428 291 424 338M630 322 654 397M660 259 696 222M681 223H722" fill="none" stroke="#292D32" stroke-width="9" stroke-linecap="round"/>
+  <path d="M320 353 380 339M545 350 597 342M411 373 471 377" fill="none" stroke="#777E85" stroke-width="6" stroke-linecap="round"/>
+  <text x="64" y="526" fill="#777E85" font-family="Arial,sans-serif" font-size="13" letter-spacing="2">ILLUSTRATIVE DEMO ART · NOT A PRODUCT PHOTOGRAPH</text>
+</svg>

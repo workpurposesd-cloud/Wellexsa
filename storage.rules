@@ -1,0 +1,32 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    function isPublishedBike(bikeId) {
+      return firestore.get(/databases/(default)/documents/bikes/$(bikeId)).data.status == 'published';
+    }
+
+    match /bike-images/{bikeId}/{fileName} {
+      allow read: if isAdmin() || isPublishedBike(bikeId);
+      allow write: if isAdmin()
+        && request.resource != null
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if isAdmin();
+    }
+
+    match /homepage-slides/{slideId}/{fileName} {
+      allow read: if isAdmin() ||
+        (firestore.get(/databases/(default)/documents/homepageSlides/$(slideId)).data.status == 'published'
+        && firestore.get(/databases/(default)/documents/homepageSlides/$(slideId)).data.enabled == true);
+      allow write: if isAdmin()
+        && request.resource != null
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if isAdmin();
+    }
+  }
+}

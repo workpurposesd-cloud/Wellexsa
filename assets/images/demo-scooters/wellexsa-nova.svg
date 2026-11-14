@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" role="img" aria-labelledby="title">
+  <title id="title">WELLEXSA NOVA demonstration scooter illustration</title>
+  <rect width="900" height="580" fill="#FFFFFF"/>
+  <path d="M54 456H846" stroke="#DDE1E5" stroke-width="2"/>
+  <text x="64" y="82" fill="#777E85" font-family="Arial,sans-serif" font-size="15" letter-spacing="4">WELLEXSA · DEMO COLLECTION</text>
+  <text x="64" y="133" fill="#292D32" font-family="Arial,sans-serif" font-size="42" font-weight="700" letter-spacing="2">NOVA</text>
+  <ellipse cx="451" cy="456" rx="263" ry="16" fill="#292D32" opacity=".08"/>
+  <circle cx="276" cy="405" r="59" fill="#151719"/><circle cx="276" cy="405" r="36" fill="#E5E7EB"/><circle cx="276" cy="405" r="12" fill="#777E85"/>
+  <circle cx="650" cy="405" r="59" fill="#151719"/><circle cx="650" cy="405" r="36" fill="#E5E7EB"/><circle cx="650" cy="405" r="12" fill="#777E85"/>
+  <path d="M278 357 354 349 403 327 489 331 544 351 592 349 615 309 633 260 662 266 648 337 618 373 582 383 471 383 409 369 351 379 296 383Z" fill="#E5E7EB" stroke="#777E85" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M407 364 563 362 581 383 471 383Z" fill="#777E85"/>
+  <path d="M352 285Q365 266 392 266H470Q488 266 497 280L489 296H361Z" fill="#292D32"/>
+  <path d="M428 294 425 339M620 328 648 397M645 265 681 229M672 230H712" fill="none" stroke="#292D32" stroke-width="8" stroke-linecap="round"/>
+  <path d="M326 359 378 345M541 353 588 350M417 376 474 378" fill="none" stroke="#777E85" stroke-width="6" stroke-linecap="round"/>
+  <text x="64" y="526" fill="#777E85" font-family="Arial,sans-serif" font-size="13" letter-spacing="2">ILLUSTRATIVE DEMO ART · NOT A PRODUCT PHOTOGRAPH</text>
+</svg>
