@@ -1,8 +1,15 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { auth, isFirebaseConfigured } from "./firebase-config.js";
+import { readCart } from "./bikes.js";
 
 const menuButton = document.querySelector(".menu-toggle");
 const nav = document.querySelector(".main-nav");
+const header = document.querySelector(".site-header");
+const cartCount = readCart().reduce((total, item) => total + item.quantity, 0);
+
+document.querySelectorAll(".cart-count").forEach((counter) => {
+  counter.textContent = String(cartCount);
+});
 
 if (menuButton && nav) {
   menuButton.addEventListener("click", () => {
@@ -19,24 +26,9 @@ if (menuButton && nav) {
     menuButton.setAttribute("aria-expanded", "false");
     menuButton.setAttribute("aria-label", "Open navigation");
   });
+}
 
-  const signinPath = new URL("signin.html", window.location.href).pathname;
-  const loginLink = [...nav.querySelectorAll("a")].find((link) => {
-    return new URL(link.href, window.location.href).pathname === signinPath;
-  }) || document.createElement("a");
-  loginLink.href = "signin.html";
-  loginLink.textContent = "Login";
-  loginLink.classList.remove("nav-account");
-  loginLink.classList.add("nav-auth-link");
-
-  const authControls = document.createElement("div");
-  authControls.className = "nav-auth-controls";
-
-  const signupLink = document.createElement("a");
-  signupLink.href = "signup.html";
-  signupLink.className = "nav-auth-link";
-  signupLink.textContent = "Sign Up";
-
+if (header) {
   const profileRegion = document.createElement("div");
   profileRegion.className = "nav-profile";
 
@@ -47,8 +39,7 @@ if (menuButton && nav) {
   profileButton.setAttribute("aria-haspopup", "true");
   profileButton.setAttribute("aria-expanded", "false");
   profileButton.setAttribute("aria-controls", "customer-profile-menu");
-  profileButton.hidden = true;
-  profileButton.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6"></circle><path d="M5 20c.4-3.5 3.2-5.8 7-5.8s6.6 2.3 7 5.8"></path></svg>';
+  profileButton.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="9" r="3"></circle><path d="M6.5 18.5c1.2-2.6 3.1-3.8 5.5-3.8s4.3 1.2 5.5 3.8"></path></svg>';
 
   const profileMenu = document.createElement("div");
   profileMenu.id = "customer-profile-menu";
@@ -57,37 +48,64 @@ if (menuButton && nav) {
   profileMenu.setAttribute("aria-label", "Customer profile");
   profileMenu.hidden = true;
 
+  const signinLink = document.createElement("a");
+  signinLink.href = "signin.html";
+  signinLink.className = "nav-profile-link";
+  signinLink.textContent = "Sign In";
+
+  const signupLink = document.createElement("a");
+  signupLink.href = "signup.html";
+  signupLink.className = "nav-profile-link";
+  signupLink.textContent = "Create Account";
+
   const identity = document.createElement("p");
   identity.className = "nav-profile-identity";
   identity.setAttribute("aria-live", "polite");
+  identity.hidden = true;
 
   const profileLink = document.createElement("a");
   profileLink.href = "account.html";
+  profileLink.className = "nav-profile-link";
   profileLink.textContent = "My Profile";
+  profileLink.hidden = true;
 
   const ordersLink = document.createElement("a");
   ordersLink.href = "account.html#orders";
+  ordersLink.className = "nav-profile-link";
   ordersLink.textContent = "My Orders";
+  ordersLink.hidden = true;
+
+  const logoutButton = document.createElement("button");
+  logoutButton.type = "button";
+  logoutButton.className = "nav-profile-logout";
+  logoutButton.textContent = "Logout";
+  logoutButton.hidden = true;
 
   const feedback = document.createElement("p");
   feedback.className = "nav-profile-feedback";
   feedback.setAttribute("role", "status");
   feedback.hidden = true;
 
-  const logoutButton = document.createElement("button");
-  logoutButton.type = "button";
-  logoutButton.className = "nav-profile-logout";
-  logoutButton.textContent = "Logout";
-
-  profileMenu.append(identity, profileLink, ordersLink, logoutButton, feedback);
+  profileMenu.append(signinLink, signupLink, identity, profileLink, ordersLink, logoutButton, feedback);
   profileRegion.append(profileButton, profileMenu);
-  authControls.append(loginLink, signupLink, profileRegion);
-  nav.append(authControls);
+  header.append(profileRegion);
 
   function setProfileMenuOpen(open) {
     profileMenu.hidden = !open;
     profileButton.setAttribute("aria-expanded", String(open));
     profileButton.setAttribute("aria-label", open ? "Close profile menu" : "Open profile menu");
+  }
+
+  function renderAuthState(user) {
+    const signedIn = Boolean(user);
+    signinLink.hidden = signedIn;
+    signupLink.hidden = signedIn;
+    identity.hidden = !signedIn;
+    identity.textContent = user?.displayName || user?.email || "My account";
+    profileLink.hidden = !signedIn;
+    ordersLink.hidden = !signedIn;
+    logoutButton.hidden = !signedIn;
+    if (!signedIn) setProfileMenuOpen(false);
   }
 
   profileButton.addEventListener("click", () => {
@@ -105,7 +123,7 @@ if (menuButton && nav) {
     }
   });
 
-  [profileLink, ordersLink].forEach((link) => {
+  [signinLink, signupLink, profileLink, ordersLink].forEach((link) => {
     link.addEventListener("click", () => setProfileMenuOpen(false));
   });
 
@@ -135,14 +153,7 @@ if (menuButton && nav) {
   });
 
   if (isFirebaseConfigured && auth) {
-    onAuthStateChanged(auth, (user) => {
-      const signedIn = Boolean(user);
-      loginLink.hidden = signedIn;
-      signupLink.hidden = signedIn;
-      profileButton.hidden = !signedIn;
-      identity.textContent = user?.displayName || user?.email || "My account";
-      if (!signedIn) setProfileMenuOpen(false);
-    }, (error) => {
+    onAuthStateChanged(auth, renderAuthState, (error) => {
       console.error("Customer auth state listener failed", {
         code: typeof error?.code === "string" ? error.code : "unknown",
         message: typeof error?.message === "string" ? error.message : "No Firebase error message provided"
