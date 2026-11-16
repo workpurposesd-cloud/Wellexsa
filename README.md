@@ -5,7 +5,7 @@ A responsive electric-scooter showroom with customer accounts, live Firestore li
 ## Brand and design assets
 
 - The supplied WELLEXSA emblem and wordmark PNG is used as the logo throughout the website without recreating the artwork. Its white artwork is placed against a charcoal background for legibility.
-- The homepage hero uses the main image from the newest published bike listing. Upload a genuine showroom/product photograph when publishing inventory; the project does not use a generated scooter illustration as a product photo.
+- The homepage slider uses eight local fallback slides; enabled, published Firestore slides override them. The eight active demo previews use the original `assets/images/image1.jfif` through `image8.jfif` files, mapped in order to Tunwal Alfa Pro, Tunwal Mini Lithino, Tunwal Sport 63, YO Bykes YO Smart+, YO Bykes YO Smart, YO Bykes YO DX, WELLEXSA Double Light and EoX Electric OKO. The image9.jfif and image10.jfif files are retained but are not used in the active demo catalogue.
 - `privacy.html` and `terms.html` are starter pages, clearly marked for showroom business review. Confirm the final legal, data-retention, cancellation, delivery and warranty terms before launch.
 
 ## What is included
@@ -15,7 +15,7 @@ A responsive electric-scooter showroom with customer accounts, live Firestore li
 - Firebase customer signup, sign-in, account page and sign-out.
 - Separate username-based admin sign-in, first-login password change and dashboard. The username mapping stays server-only; access is verified from Firebase custom claims and enforced by Firestore and Storage rules.
 - Admin bike create, edit, publish, unpublish, stock adjustment and archive workflows. Archiving hides a bike and zeroes active stock without deleting historical order snapshots.
-- Stock-aware shopping cart and checkout. Checkout prices and available inventory are recalculated by the trusted backend.
+- Stock-aware shopping cart and checkout. Customers can choose a supported battery/range combination on the product details page; the trusted backend validates that choice against the published product specifications, recalculates the product listing price, and checks aggregate stock.
 - Firebase Cloud Functions create Razorpay orders, verify payment signatures and gateway status, handle Razorpay webhooks and atomically deduct stock only once after a captured payment.
 - Customer order history and admin order/payment/customer views. Fulfillment status is separated from payment status; admins cannot mark a payment as paid.
 - The **SAVE & PUBLISH BIKE** workflow requires a main image, price, name and the five required specifications. Optional fields do not block publishing.
@@ -53,6 +53,12 @@ A responsive electric-scooter showroom with customer accounts, live Firestore li
    ```
 
    In **Authentication → Settings → Authorized domains**, ensure `localhost` and the deployed hosting domain are allowed. Do not launch the app with permissive test rules.
+
+### Authentication troubleshooting
+
+The browser app reads its Firebase Web App settings only from `js/firebase-config.js`; its API key, `authDomain` and `projectId` must all come from the same existing Firebase project. The admin callable's `FIREBASE_WEB_API_KEY` parameter must match that Web App API key. In the Firebase and Google Cloud consoles, verify that Email/Password is enabled, the Firebase Authentication API is available to the project, the API key is allowed to call Identity Toolkit, and the site's hostname is an authorized domain. A `400` from `accounts:signUp` is an Authentication API response, not a Firestore profile-write error; the form reports common provider, API-key and domain errors separately.
+
+If the browser reports `auth/configuration-not-found`, Firebase Authentication has not been initialized for the project selected by the Web API key. In Firebase Console, select the existing `wellexsa` project, open **Build → Authentication**, select **Get started** if prompted, then open **Sign-in method** and enable **Email/Password**. Do not change the app's API key to work around this error. The source files cannot initialize a Firebase project's backend service or verify its Console state.
 
 ### Provision the initial administrator (trusted setup)
 
@@ -111,7 +117,7 @@ The five required specifications, non-negative quantity and at least one bike im
 
 ### WELLEXSA demonstration model previews
 
-While live inventory is loading, if there are no published bikes, or if Firestore cannot be reached, the homepage displays ten clearly labeled WELLEXSA concept models. A later live inventory snapshot replaces the previews. Their supplied specifications are demonstration data, prices and stock are unset, and their local SVG artwork is illustrative rather than product photography. Demo cards cannot be added to the cart. This preview does not write to Firestore.
+While live inventory is loading, if there are no published bikes, or if Firestore cannot be reached, the homepage displays eight clearly labeled demo models. A later live inventory snapshot replaces the previews. Their supplied specifications are sample data, prices and stock are unset, and their local JFIF images are demo imagery; verify the model, photograph and specifications before publishing actual inventory. Demo cards cannot be added to the cart. This preview does not write to Firestore.
 
 An authorized administrator can choose **Start from a WELLEXSA demo model** in the bike editor to prefill the existing form. This only loads editable values in the form; it does not create a Firestore document. Verify all specifications, enter a real price and warranty, set inventory, and upload a real product photo before publishing. The existing `bikes` collection and Firestore validation remain unchanged.
 
@@ -121,12 +127,12 @@ Orders are written and updated by trusted Cloud Functions only:
 
 ```text
 userId, customer: { name, email, phone }, shipping: { name, phone, address, city, state, postalCode },
-items: [{ bikeId, name, brand, model, imageUrl, quantity, unitPrice, lineTotal }],
+items: [{ bikeId, name, brand, model, imageUrl, quantity, unitPrice, lineTotal, batteryOption?: { batteryType, range, warranty } }],
 totalAmount (INR), currency, paymentStatus, orderStatus, razorpayOrderId,
 razorpayPaymentId, paymentCapturedAt, refundId/refundStatus, createdAt, updatedAt
 ```
 
-Customers may read only their own orders; admins may read orders for support. `paymentStatus` is controlled by payment verification/webhooks and is never editable from the admin UI. `orderStatus` tracks fulfillment separately. The backend checks stock at checkout and again in a Firestore transaction after confirmed capture; duplicate webhook/callback processing does not deduct stock twice. If a paid payment cannot be fulfilled because stock changed concurrently, the order is flagged for admin review/refund rather than overselling.
+Customers may read only their own orders; admins may read orders for support. `paymentStatus` is controlled by payment verification/webhooks and is never editable from the admin UI. `orderStatus` tracks fulfillment separately. The backend checks selected battery/range options and aggregate stock at checkout and again in a Firestore transaction after confirmed capture; duplicate webhook/callback processing does not deduct stock twice. If a paid payment cannot be fulfilled because stock changed concurrently, the order is flagged for admin review/refund rather than overselling.
 
 ### `checkoutRequests/{uid_requestId}` and `paymentIssues/{issueId}`
 
@@ -142,6 +148,8 @@ order, enabled, active, status: "published" | "draft", createdAt, updatedAt
 ```
 
 The public query filters on `status == "published"` and `enabled == true`, ordered by `order`. The admin-selected starting slide is shown first, then the remaining slides rotate every five seconds. `adminUsernames` maps a normalized username to a Firebase Auth UID and is server-only; Firestore rules deny all client access to that collection. Homepage banner objects use `homepage-slides/{slideId}/{fileName}` and the same 10 MB JPG/PNG/WebP restrictions as bike images.
+
+If there are no enabled published slides, the homepage uses eight local model slides (Tunwal Alfa Pro, Tunwal Mini Lithino, Tunwal Sport 63, YO Bykes YO Smart+, YO Bykes YO Smart, YO Bykes YO DX, WELLEXSA Double Light and EoX Electric OKO) and cycles them every five seconds.
 
 ### Initial DECCAN R listing
 
@@ -179,7 +187,13 @@ After updating the Firebase Web App config, setting the Functions API-key parame
 python -m http.server 8000
 ```
 
-Open `http://localhost:8000`. Test customer registration, sign-in, protected account/order history and sign-out; then sign in at `http://localhost:8000/admin-login.html` with the provisioned username and password. The associated Firebase Auth account must have the `admin: true` custom claim. Try publishing a bike with missing required fields, an invalid image type, and an image larger than 10 MB. Set stock to 10, add to cart, test quantity limits, and check out in Razorpay test mode. Verify failed/cancelled payments do not reduce stock, a verified successful payment reduces it once, zero stock disables purchase, and repeated webhook delivery does not double-deduct. Try order filtering/status updates and confirm the admin UI cannot set a payment to successful.
+Open `http://localhost:8000` and test the authentication paths separately:
+
+1. **Customer signup:** open `signup.html`, submit a valid name, email, mobile number and matching password of at least 8 characters. Confirm the new user appears in Firebase Authentication, a matching `users/{uid}` profile is created in Firestore, and signup redirects to `account.html` (or `checkout.html` when signup was started from checkout).
+2. **Customer login:** sign out, open `signin.html`, and sign in with that email and password. Confirm redirect to `account.html`; try a wrong password and verify the page displays a useful error without exposing credentials.
+3. **Admin login:** provision the administrator with the trusted setup above, then use its username and password at `admin-login.html`. First sign-in must redirect to `admin-change-password.html`; after setting the required new password, subsequent sign-in should reach `admin-dashboard.html`. A normal customer account must not pass the dashboard's custom-claim check.
+
+If signup returns `400`, confirm the Web App config belongs to the intended existing project, Email/Password is enabled, and the API key is not blocking Identity Toolkit. For admin sign-in, also confirm the `FIREBASE_WEB_API_KEY` Functions parameter matches the Web App key and the admin callable functions are deployed. Then test protected account/order history and sign-out. Try publishing a bike with missing required fields, an invalid image type, and an image larger than 10 MB. Set stock to 10, add to cart, test quantity limits, and check out in Razorpay test mode. Verify failed/cancelled payments do not reduce stock, a verified successful payment reduces it once, zero stock disables purchase, and repeated webhook delivery does not double-deduct. Try order filtering/status updates and confirm the admin UI cannot set a payment to successful.
 
 If local Python is unavailable, use any static HTTP server that serves this folder without changing the project's Firebase access rules.
 

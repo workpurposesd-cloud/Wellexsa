@@ -19,165 +19,157 @@ export const specificationFields = [
 
 export const demoScooters = [
   {
-    id: "demo-wellexsa-aura",
-    name: "WELLEXSA AURA",
-    model: "AURA",
-    category: "Premium Urban",
-    batteryCapacity: "3.0 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "120 km",
-    topSpeed: "80 km/h",
-    motor: "2.5 kW",
-    chargingTime: "4–5 hours",
-    brakes: "Disc / Drum",
+    id: "demo-tunwal-alfa-pro",
+    name: "Tunwal Alfa Pro",
+    model: "Alfa Pro",
+    brand: "Tunwal",
+    category: "Lithium + GEL battery options",
+    batteryChemistry: "",
+    range: "",
+    topSpeed: "",
+    motor: "",
+    chargingTime: "",
     image: "assets/images/image1.jfif",
-    shortDescription: "Refined comfort and clean lines, imagined for premium urban riding."
+    shortDescription: "Available in Lithium and GEL battery options. Compare each option's warranty and range below.",
+    description: "Tunwal Alfa Pro with Lithium and GEL battery options. See the separate warranty and range details below.",
+    specifications: {
+      "Battery Type Options": "Lithium Battery and GEL Battery",
+      "Lithium Battery Warranty": "3 Years",
+      "Lithium Battery Range Options": "60 KM, 80 KM, 110 KM",
+      "GEL Battery Warranty": "1 Year",
+      "GEL Battery Range": "60–70 KM",
+      "Motor Controller Warranty": "1 Year"
+    }
   },
   {
-    id: "demo-wellexsa-vega",
-    name: "WELLEXSA VEGA",
-    model: "VEGA",
-    category: "Premium Performance",
-    batteryCapacity: "3.5 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "140 km",
-    topSpeed: "90 km/h",
-    motor: "3.0 kW",
-    chargingTime: "4–5 hours",
-    brakes: "Dual Disc",
-    image: "assets/images/image4.jfif",
-    shortDescription: "A performance-led concept for confident, longer urban routes."
-  },
-  {
-    id: "demo-wellexsa-nova",
-    name: "WELLEXSA NOVA",
-    model: "NOVA",
-    category: "City Commuter",
-    batteryCapacity: "2.5 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "100 km",
-    topSpeed: "75 km/h",
-    motor: "2.0 kW",
-    chargingTime: "4 hours",
-    brakes: "Disc / Drum",
-    image: "assets/images/image3.jfif",
-    shortDescription: "Compact proportions and a practical silhouette for city journeys."
-  },
-  {
-    id: "demo-wellexsa-titan",
-    name: "WELLEXSA TITAN",
-    model: "TITAN",
-    category: "Performance",
-    batteryCapacity: "4.0 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "160 km",
-    topSpeed: "100 km/h",
-    motor: "4.0 kW",
-    chargingTime: "5–6 hours",
-    brakes: "Dual Disc",
+    id: "demo-tunwal-mini-lithino",
+    name: "Tunwal Mini Lithino",
+    model: "Mini Lithino",
+    brand: "Tunwal",
+    category: "Lithium + GEL battery options",
     image: "assets/images/image2.jfif",
-    shortDescription: "A bold, high-output concept with a confident road presence."
+    shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
+    specifications: {
+      "Battery Type Options": "Lithium Battery and GEL Battery",
+      "Lithium Battery Warranty": "3 Years",
+      "Lithium Battery Range Options": "60 KM, 80 KM",
+      "GEL Battery Warranty": "1 Year",
+      "GEL Battery Range": "60–70 KM",
+      "Motor Controller Warranty": "1 Year"
+    }
   },
   {
-    id: "demo-wellexsa-elite",
-    name: "WELLEXSA ELITE",
-    model: "ELITE",
-    category: "Luxury",
-    batteryCapacity: "3.2 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "130 km",
-    topSpeed: "85 km/h",
-    motor: "3.0 kW",
-    chargingTime: "4–5 hours",
-    brakes: "Disc / Drum",
+    id: "demo-tunwal-sport-63",
+    name: "Tunwal Sport 63",
+    model: "Sport 63",
+    brand: "Tunwal",
+    category: "Lithium + GEL battery options",
+    image: "assets/images/image3.jfif",
+    shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
+    specifications: {
+      "Battery Type Options": "Lithium Battery and GEL Battery",
+      "Lithium Battery Warranty": "3 Years",
+      "Lithium Battery Range Options": "60 KM, 80 KM",
+      "GEL Battery Warranty": "1 Year",
+      "GEL Battery Range": "60–70 KM",
+      "Motor Controller Warranty": "1 Year"
+    }
+  },
+  {
+    id: "demo-yo-smart-plus",
+    name: "YO Bykes YO Smart+",
+    model: "YO Smart+",
+    brand: "YO Bykes",
+    category: "Lithium + GEL battery options",
+    image: "assets/images/image4.jfif",
+    shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
+    specifications: {
+      "Battery Type Options": "Lithium Battery and GEL Battery",
+      "Lithium Battery Warranty": "3 Years",
+      "Lithium Battery Range Options": "60 KM, 80 KM, 110 KM",
+      "GEL Battery Warranty": "1 Year",
+      "GEL Battery Range": "60–70 KM",
+      "Motor Controller Warranty": "3 Years"
+    }
+  },
+  {
+    id: "demo-yo-smart",
+    name: "YO Bykes YO Smart",
+    model: "YO Smart",
+    brand: "YO Bykes",
+    category: "Lithium + GEL battery options",
     image: "assets/images/image5.jfif",
-    shortDescription: "An understated luxury concept shaped around everyday comfort."
+    shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
+    specifications: {
+      "Battery Type Options": "Lithium Battery and GEL Battery",
+      "Lithium Battery Warranty": "3 Years",
+      "Lithium Battery Range Options": "60 KM, 80 KM, 110 KM",
+      "GEL Battery Warranty": "1 Year",
+      "GEL Battery Range": "60–70 KM",
+      "Motor Controller Warranty": "3 Years"
+    }
   },
   {
-    id: "demo-wellexsa-prime",
-    name: "WELLEXSA PRIME",
-    model: "PRIME",
-    category: "Everyday Premium",
-    batteryCapacity: "3.0 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "115 km",
-    topSpeed: "80 km/h",
-    motor: "2.5 kW",
-    chargingTime: "4 hours",
-    brakes: "Disc / Drum",
+    id: "demo-yo-dx",
+    name: "YO Bykes YO DX",
+    model: "YO DX",
+    brand: "YO Bykes",
+    category: "Lithium + GEL battery options",
     image: "assets/images/image6.jfif",
-    shortDescription: "A balanced concept focused on convenience and daily versatility."
+    shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
+    specifications: {
+      "Battery Type Options": "Lithium Battery and GEL Battery",
+      "Lithium Battery Warranty": "3 Years",
+      "Lithium Battery Range Options": "60 KM, 80 KM",
+      "GEL Battery Warranty": "1 Year",
+      "GEL Battery Range": "60–70 KM",
+      "Motor Controller Warranty": "3 Years"
+    }
   },
   {
-    id: "demo-wellexsa-storm",
-    name: "WELLEXSA STORM",
-    model: "STORM",
-    category: "Sport",
-    batteryCapacity: "4.2 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "150 km",
-    topSpeed: "95 km/h",
-    motor: "4.0 kW",
-    chargingTime: "5–6 hours",
-    brakes: "Dual Disc",
+    id: "demo-wellexsa-double-light",
+    name: "WELLEXSA Double Light",
+    model: "Double Light",
+    brand: "WELLEXSA",
+    category: "Lithium + GEL battery options",
     image: "assets/images/image7.jfif",
-    shortDescription: "A sport-focused concept with a dynamic stance and strong visual character."
+    shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
+    specifications: {
+      "Battery Type Options": "Lithium Battery and GEL Battery",
+      "Lithium Battery Warranty": "3 Years",
+      "Lithium Battery Range Options": "60 KM, 80 KM, 110 KM",
+      "GEL Battery Warranty": "1 Year",
+      "GEL Battery Range": "60–70 KM",
+      "Motor Controller Warranty": "1 Year"
+    }
   },
   {
-    id: "demo-wellexsa-glide",
-    name: "WELLEXSA GLIDE",
-    model: "GLIDE",
-    category: "Comfort",
-    batteryCapacity: "2.8 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "110 km",
-    topSpeed: "75 km/h",
-    motor: "2.2 kW",
-    chargingTime: "4 hours",
-    brakes: "Disc / Drum",
+    id: "demo-eox-oko",
+    name: "EoX Electric OKO",
+    model: "OKO",
+    brand: "EoX Electric",
+    category: "Specified range: 60 KM",
     image: "assets/images/image8.jfif",
-    shortDescription: "A smooth, comfort-led concept for relaxed everyday trips."
-  },
-  {
-    id: "demo-wellexsa-zenith",
-    name: "WELLEXSA ZENITH",
-    model: "ZENITH",
-    category: "Advanced Luxury",
-    batteryCapacity: "3.8 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "145 km",
-    topSpeed: "90 km/h",
-    motor: "3.5 kW",
-    chargingTime: "5 hours",
-    brakes: "Dual Disc",
-    image: "assets/images/image9.jfif",
-    shortDescription: "An advanced luxury concept with elevated capability and detailing."
-  },
-  {
-    id: "demo-wellexsa-edge",
-    name: "WELLEXSA EDGE",
-    model: "EDGE",
-    category: "Smart Urban",
-    batteryCapacity: "3.0 kWh",
-    batteryChemistry: "Lithium-ion",
-    range: "125 km",
-    topSpeed: "85 km/h",
-    motor: "3.0 kW",
-    chargingTime: "4–5 hours",
-    brakes: "Disc / Drum",
-    image: "assets/images/image10.jfif",
-    shortDescription: "A smart-urban concept with a focused, city-ready silhouette."
+    shortDescription: "Specified range: 60 KM. Battery type is not specified.",
+    specifications: {
+      "Battery Type": "Not specified",
+      "Battery Warranty": "2 Years",
+      "Specified Range": "60 KM",
+      "Motor and Controller Warranty": "2 Years"
+    }
   }
 ].map((bike) => ({
   ...bike,
-  brand: "WELLEXSA",
+  brand: bike.brand || "WELLEXSA",
   demoData: true,
   status: "demo",
   price: null,
   stockQuantity: 0,
-  batteryWarranty: "",
-  description: "Demonstration content only. These specifications are unverified sample data, not confirmed production specifications. Confirm the price, warranty, images, availability and all specifications before publishing.",
-  specifications: {
+  batteryChemistry: bike.batteryChemistry || "",
+  range: bike.range || "",
+  batteryWarranty: bike.batteryWarranty || "",
+  description: bike.description || "Demonstration content only. These specifications are unverified sample data, not confirmed production specifications. Confirm the price, warranty, images, availability and all specifications before publishing.",
+  specifications: bike.specifications || {
     "Battery capacity": bike.batteryCapacity,
     Brakes: bike.brakes,
     Category: bike.category,
@@ -185,6 +177,26 @@ export const demoScooters = [
   },
   imageUrls: [bike.image]
 }));
+
+export function getBatteryRangeOptions(bike) {
+  const specifications = bike?.specifications;
+  if (!specifications || typeof specifications !== "object") return [];
+
+  return [
+    ["Lithium Battery", "Lithium Battery Warranty", "Lithium Battery Range Options"],
+    ["GEL Battery", "GEL Battery Warranty", "GEL Battery Range"]
+  ].flatMap(([batteryType, warrantyKey, rangesKey]) => {
+    const warranty = specifications[warrantyKey];
+    const ranges = specifications[rangesKey];
+    if (typeof warranty !== "string" || typeof ranges !== "string") return [];
+
+    return ranges.split(",").map((range) => range.trim()).filter(Boolean).map((range) => ({
+      batteryType,
+      range,
+      warranty
+    }));
+  });
+}
 
 export function formatPrice(price) {
   const amount = Number(price);
@@ -220,7 +232,10 @@ export function readCart() {
     if (!Array.isArray(stored)) return [];
     return stored.filter((item) =>
       item && typeof item.bikeId === "string" &&
-      Number.isInteger(item.quantity) && item.quantity > 0
+      Number.isInteger(item.quantity) && item.quantity > 0 &&
+      (item.batteryOption === undefined ||
+        (item.batteryOption && typeof item.batteryOption.batteryType === "string" &&
+          typeof item.batteryOption.range === "string"))
     );
   } catch {
     return [];
@@ -234,26 +249,46 @@ export function writeCart(items) {
   });
 }
 
-export function addToCart(bike, quantity) {
+function sameBatteryOption(first, second) {
+  return (first?.batteryType || "") === (second?.batteryType || "") &&
+    (first?.range || "") === (second?.range || "");
+}
+
+export function addToCart(bike, quantity, batteryOption = null) {
+  if (!bike || bike.demoData === true || !Number.isInteger(quantity) || quantity < 1) return false;
+  const options = getBatteryRangeOptions(bike);
+  const selectedOption = batteryOption &&
+    options.find((option) => option.batteryType === batteryOption.batteryType && option.range === batteryOption.range);
+  if ((options.length > 0 && !selectedOption) || (options.length === 0 && batteryOption)) return false;
+
   const cart = readCart();
-  const existing = cart.find((item) => item.bikeId === bike.id);
-  const nextQuantity = (existing?.quantity || 0) + quantity;
+  const existing = cart.find((item) => item.bikeId === bike.id && sameBatteryOption(item.batteryOption, selectedOption));
+  const totalQuantity = cart
+    .filter((item) => item.bikeId === bike.id)
+    .reduce((total, item) => total + item.quantity, 0) + quantity;
   const available = Number(bike.stockQuantity) || 0;
-  if (nextQuantity > available) return false;
-  if (existing) existing.quantity = nextQuantity;
-  else cart.push({ bikeId: bike.id, quantity });
+  if (totalQuantity > available) return false;
+  if (existing) existing.quantity += quantity;
+  else cart.push({
+    bikeId: bike.id,
+    quantity,
+    ...(selectedOption ? { batteryOption: { batteryType: selectedOption.batteryType, range: selectedOption.range } } : {})
+  });
   writeCart(cart);
   return true;
 }
 
-export function updateCartQuantity(bikeId, quantity) {
+export function updateCartQuantity(bikeId, quantity, batteryOption = null) {
   const cart = readCart();
-  const item = cart.find((entry) => entry.bikeId === bikeId);
+  const item = cart.find((entry) => entry.bikeId === bikeId && sameBatteryOption(entry.batteryOption, batteryOption));
   if (!item) return;
   item.quantity = quantity;
   writeCart(cart.filter((entry) => entry.quantity > 0));
 }
 
-export function removeFromCart(bikeId) {
-  writeCart(readCart().filter((item) => item.bikeId !== bikeId));
+export function removeFromCart(bikeId, batteryOption = null) {
+  const cart = readCart();
+  writeCart(cart.filter((item) =>
+    item.bikeId !== bikeId || !sameBatteryOption(item.batteryOption, batteryOption)
+  ));
 }

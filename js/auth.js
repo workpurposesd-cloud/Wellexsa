@@ -29,14 +29,36 @@ const friendlyError = (error) => {
     "auth/weak-password": "Choose a stronger password with at least 8 characters.",
     "auth/network-request-failed": "Network connection failed. Check your connection and try again.",
     "auth/operation-not-allowed": "Email and password sign-in is not enabled in Firebase Authentication.",
+    "auth/admin-restricted-operation": "Email and password sign-in is not enabled for this Firebase project.",
+    "auth/api-key-not-valid": "Firebase rejected this app's API key. Verify the Web App configuration and API key restrictions.",
+    "auth/invalid-api-key": "Firebase rejected this app's API key. Verify the Web App configuration and API key restrictions.",
+    "auth/app-not-authorized": "This website's domain is not authorized for Firebase Authentication. Add it in Firebase Authentication settings.",
+    "auth/unauthorized-domain": "This website's domain is not authorized for Firebase Authentication. Add it in Firebase Authentication settings.",
+    "auth/requests-to-this-api-are-blocked": "The Firebase API key is restricted from Authentication requests. Review its API restrictions in Google Cloud Console.",
+    "auth/configuration-not-found": "Firebase Authentication has not been initialized for this project. In Firebase Console, open Build → Authentication and select Get started, then enable Email/Password.",
+    "auth/password-does-not-meet-requirements": "Choose a password that meets the requirements configured for this Firebase project.",
     "functions/unauthenticated": "The administrator username or password is incorrect.",
     "functions/unavailable": "Secure administrator sign-in is unavailable. Try again shortly.",
     "functions/internal": "Secure administrator sign-in could not reach Firebase. Try again shortly.",
     "functions/deadline-exceeded": "Secure administrator sign-in timed out. Try again.",
+    "functions/not-found": "Secure administrator sign-in is not deployed. Contact the showroom administrator.",
+    "functions/failed-precondition": "Secure administrator sign-in is not configured. Contact the showroom administrator.",
+    "functions/resource-exhausted": "Too many administrator sign-in attempts. Try again later.",
     "functions/invalid-argument": "Choose a new password with at least 12 characters."
   };
   return messages[error.code] || "We couldn't complete that request. Please try again.";
 };
+
+function logAuthFailure(action, error) {
+  console.error(`${action} failed`, {
+    code: error?.code || "unknown",
+    message: typeof error?.message === "string" ? error.message : "No Firebase error message provided"
+  });
+}
+
+function normalizeEmail(value) {
+  return value.trim().toLowerCase();
+}
 
 function validMobileNumber(value) {
   const digits = value.replace(/\D/g, "");
@@ -71,13 +93,13 @@ if (signupForm) {
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!signupForm.reportValidity()) return;
-    if (!isFirebaseConfigured) {
-      setMessage("Firebase is not configured yet. Follow the setup instructions in README.md.", false);
+    if (!isFirebaseConfigured || !auth || !db) {
+      setMessage("Firebase could not be initialized. Check the Web App configuration and setup instructions in README.md.", false);
       return;
     }
     const data = new FormData(signupForm);
     const name = data.get("name").trim();
-    const email = data.get("email").trim();
+    const email = normalizeEmail(data.get("email"));
     const mobile = data.get("mobile").trim();
     const password = data.get("password");
     if (name.length < 2) {
@@ -115,9 +137,10 @@ if (signupForm) {
     } catch (error) {
       if (createdUser) {
         setMessage("Your Firebase account was created, but profile setup did not finish. Check your connection and retry profile setup.");
-        console.error("Firebase account exists but profile setup failed", error);
+        logAuthFailure("Firebase profile setup", error);
       } else {
         setMessage(friendlyError(error));
+        logAuthFailure("Customer signup", error);
       }
       submit.disabled = false;
       submit.innerHTML = createdUser
@@ -131,14 +154,14 @@ const signinForm = document.getElementById("signin-form");
 if (signinForm) {
   const resetButton = document.getElementById("forgot-password");
   resetButton?.addEventListener("click", async () => {
-    const email = signinForm.elements.email.value.trim();
+    const email = normalizeEmail(signinForm.elements.email.value);
     if (!email) {
       setMessage("Enter your email address first, and we’ll send you a password reset link.", false);
       signinForm.elements.email.focus();
       return;
     }
-    if (!isFirebaseConfigured) {
-      setMessage("Firebase is not configured yet. Follow the setup instructions in README.md.", false);
+    if (!isFirebaseConfigured || !auth) {
+      setMessage("Firebase could not be initialized. Check the Web App configuration and setup instructions in README.md.", false);
       return;
     }
     resetButton.disabled = true;
@@ -152,6 +175,7 @@ if (signinForm) {
         setMessage("If an account exists for this address, a password reset link has been sent.", true);
       } else {
         setMessage(friendlyError(error));
+        logAuthFailure("Password reset", error);
       }
     } finally {
       resetButton.disabled = false;
@@ -162,8 +186,8 @@ if (signinForm) {
   signinForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!signinForm.reportValidity()) return;
-    if (!isFirebaseConfigured) {
-      setMessage("Firebase is not configured yet. Follow the setup instructions in README.md.", false);
+    if (!isFirebaseConfigured || !auth) {
+      setMessage("Firebase could not be initialized. Check the Web App configuration and setup instructions in README.md.", false);
       return;
     }
     const submit = signinForm.querySelector('button[type="submit"]');
@@ -172,10 +196,11 @@ if (signinForm) {
     setMessage("");
     try {
       const data = new FormData(signinForm);
-      await signInWithEmailAndPassword(auth, data.get("email").trim(), data.get("password"));
+      await signInWithEmailAndPassword(auth, normalizeEmail(data.get("email")), data.get("password"));
       window.location.assign(customerDestination());
     } catch (error) {
       setMessage(friendlyError(error));
+      logAuthFailure("Customer sign-in", error);
       submit.disabled = false;
       submit.innerHTML = 'Sign in <span aria-hidden="true">→</span>';
     }
@@ -190,8 +215,8 @@ if (adminLoginForm) {
   adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!adminLoginForm.reportValidity()) return;
-    if (!isFirebaseConfigured) {
-      setMessage("Firebase is not configured yet. Follow the setup instructions in README.md.", false);
+    if (!isFirebaseConfigured || !auth || !functions) {
+      setMessage("Firebase could not be initialized. Check the Web App configuration and setup instructions in README.md.", false);
       return;
     }
     const submit = adminLoginForm.querySelector('button[type="submit"]');
@@ -205,6 +230,9 @@ if (adminLoginForm) {
         username: data.get("username").trim(),
         password: data.get("password")
       });
+      if (typeof response.data?.token !== "string" || !response.data.token) {
+        throw new Error("Administrator sign-in returned an invalid response.");
+      }
       await signInWithCustomToken(auth, response.data.token);
       const token = await auth.currentUser.getIdTokenResult(true);
       if (token.claims.admin !== true) {
@@ -219,6 +247,7 @@ if (adminLoginForm) {
         : "admin-dashboard.html");
     } catch (error) {
       setMessage(friendlyError(error));
+      logAuthFailure("Administrator sign-in", error);
       submit.disabled = false;
       submit.innerHTML = 'Admin sign in <span aria-hidden="true">→</span>';
     }
@@ -348,7 +377,12 @@ if (accountName) {
               const title = document.createElement("strong");
               title.textContent = `Order ${orderDocument.id}`;
               const items = document.createElement("p");
-              items.textContent = (order.items || []).map((item) => `${item.name} × ${item.quantity}`).join(", ");
+              items.textContent = (order.items || []).map((item) => {
+                const selectedOption = item.batteryOption
+                  ? ` (${item.batteryOption.batteryType} · ${item.batteryOption.range})`
+                  : "";
+                return `${item.name}${selectedOption} × ${item.quantity}`;
+              }).join(", ");
               const amount = document.createElement("p");
               amount.textContent = `Total: ₹${Number(order.totalAmount || 0).toLocaleString("en-IN")}`;
               const payment = document.createElement("p");

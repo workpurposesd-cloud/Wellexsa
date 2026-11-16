@@ -2,7 +2,7 @@ import { auth, db, isFirebaseConfigured } from "./firebase-config.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { formatPrice, readCart } from "./bikes.js";
+import { formatPrice, getBatteryRangeOptions, readCart } from "./bikes.js";
 
 const form = document.getElementById("checkout-form");
 const message = document.getElementById("checkout-message");
@@ -25,18 +25,40 @@ async function loadCartTotal() {
     let total = 0;
     const summary = document.getElementById("checkout-items");
     const summaryRows = [];
+    const quantitiesByBike = new Map();
+    cart.forEach((item) => {
+      quantitiesByBike.set(item.bikeId, (quantitiesByBike.get(item.bikeId) || 0) + item.quantity);
+    });
     for (const item of cart) {
       const snapshot = await getDoc(doc(db, "bikes", item.bikeId));
       if (!snapshot.exists()) throw new Error("A scooter in your cart is no longer available.");
       const bike = snapshot.data();
-      if (bike.status !== "published" || !Number.isInteger(bike.stockQuantity) || bike.stockQuantity < item.quantity) {
+      if (bike.status !== "published" || !Number.isInteger(bike.stockQuantity) ||
+          bike.stockQuantity < quantitiesByBike.get(item.bikeId)) {
         throw new Error(`${bike.name} does not have enough stock for this quantity.`);
       }
       if (!Number.isSafeInteger(bike.price) || bike.price <= 0) {
         throw new Error(`${bike.name} does not have a valid listed price.`);
       }
+      const options = getBatteryRangeOptions(bike);
+      const selectedOption = options.find((option) =>
+        option.batteryType === item.batteryOption?.batteryType && option.range === item.batteryOption?.range
+      );
+      if (options.length && !selectedOption) {
+        throw new Error(`Choose an available battery and range for ${bike.name} from its product details page.`);
+      }
+      if (!options.length && item.batteryOption) {
+        throw new Error(`The battery / range selection for ${bike.name} is no longer available.`);
+      }
       total += bike.price * item.quantity;
-      summaryRows.push({ name: bike.name, quantity: item.quantity, lineTotal: bike.price * item.quantity });
+      summaryRows.push({
+        name: bike.name,
+        quantity: item.quantity,
+        lineTotal: bike.price * item.quantity,
+        batterySelection: selectedOption
+          ? `${selectedOption.batteryType} · ${selectedOption.range} · ${selectedOption.warranty} warranty`
+          : ""
+      });
     }
     summary.replaceChildren();
     for (const item of summaryRows) {
@@ -44,9 +66,16 @@ async function loadCartTotal() {
       row.className = "checkout-summary-row";
       const name = document.createElement("span");
       name.textContent = `${item.name} × ${item.quantity}`;
+      const description = document.createElement("div");
+      description.append(name);
       const amount = document.createElement("strong");
       amount.textContent = formatPrice(item.lineTotal);
-      row.append(name, amount);
+      if (item.batterySelection) {
+        const selection = document.createElement("small");
+        selection.textContent = item.batterySelection;
+        description.append(selection);
+      }
+      row.append(description, amount);
       summary.append(row);
     }
     document.getElementById("checkout-total").textContent = formatPrice(total);

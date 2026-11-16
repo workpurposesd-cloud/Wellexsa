@@ -10,7 +10,7 @@
     <section class="auth-form-wrap">
       <div class="auth-form-heading"><p class="eyebrow">ADMINISTRATOR ACCESS</p><h2>Sign in</h2><p>Use your authorized administrator account.</p></div>
       <form id="admin-login-form" class="form-stack">
-        <label>Administrator username<input name="username" type="text" autocomplete="username" maxlength="32" required></label>
+        <label>Administrator username<input name="username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9._-]{3,32}" title="Use 3 to 32 letters, numbers, periods, underscores or hyphens." required></label>
         <label>Password<span class="password-input"><input name="password" type="password" autocomplete="current-password" required><button type="button" class="password-toggle" aria-label="Show password">Show</button></span></label>
         <p class="form-message" id="form-message" role="alert"></p>
         <button class="button button-dark button-full" type="submit">Admin sign in <span aria-hidden="true">→</span></button>

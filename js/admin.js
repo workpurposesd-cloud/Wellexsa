@@ -360,7 +360,12 @@ function renderOrderList(orders, target, withControls) {
     head.append(title, created);
     const details = document.createElement("div");
     details.className = "order-card-details";
-    const bikeSummary = (order.items || []).map((item) => `${item.name} × ${item.quantity}`).join(", ");
+    const bikeSummary = (order.items || []).map((item) => {
+      const selectedOption = item.batteryOption
+        ? ` (${item.batteryOption.batteryType} · ${item.batteryOption.range})`
+        : "";
+      return `${item.name}${selectedOption} × ${item.quantity}`;
+    }).join(", ");
     const lines = [
       `Customer: ${order.customer?.name || "—"} · ${order.customer?.phone || "—"}`,
       `Scooter(s): ${bikeSummary || "—"}`,

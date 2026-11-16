@@ -1,6 +1,6 @@
 import { db, isFirebaseConfigured } from "./firebase-config.js";
 import { collection, onSnapshot, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { addToCart, createImageFallback, demoScooters, formatPrice, readCart, writeCart } from "./bikes.js";
+import { addToCart, createImageFallback, demoScooters, formatPrice, getBatteryRangeOptions, readCart, writeCart } from "./bikes.js";
 import "./site-nav.js";
 
 const year = document.getElementById("year");
@@ -33,37 +33,58 @@ const sliderIndicators = document.getElementById("slider-indicators");
 const sliderCount = document.getElementById("slider-count");
 const fallbackSlides = [
   {
-    title: "WELLEXSA AURA",
-    description: "Elegance in Every Journey.",
+    title: "Tunwal Alfa Pro",
+    description: "Lithium and GEL battery options.",
     imageUrl: "assets/images/image1.jfif",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
-    title: "WELLEXSA TITAN",
-    description: "Power Beyond Expectations.",
+    title: "Tunwal Mini Lithino",
+    description: "Lithium and GEL battery options.",
     imageUrl: "assets/images/image2.jfif",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
-    title: "WELLEXSA VEGA",
-    description: "Designed for the Extraordinary.",
+    title: "YO Bykes YO Smart+",
+    description: "Lithium and GEL battery options.",
     imageUrl: "assets/images/image4.jfif",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
-    title: "WELLEXSA ELITE",
-    description: "Luxury Meets Innovation.",
+    title: "YO Bykes YO Smart",
+    description: "Lithium and GEL battery options.",
     imageUrl: "assets/images/image5.jfif",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
-    title: "WELLEXSA ZENITH",
-    description: "Experience the Next Level.",
-    imageUrl: "assets/images/image9.jfif",
+    title: "Tunwal Sport 63",
+    description: "Lithium and GEL battery options.",
+    imageUrl: "assets/images/image3.jfif",
+    buttonText: "EXPLORE NOW",
+    buttonUrl: "#bikes"
+  },
+  {
+    title: "YO Bykes YO DX",
+    description: "Lithium and GEL battery options.",
+    imageUrl: "assets/images/image6.jfif",
+    buttonText: "EXPLORE NOW",
+    buttonUrl: "#bikes"
+  },
+  {
+    title: "WELLEXSA Double Light",
+    description: "Lithium and GEL battery options.",
+    imageUrl: "assets/images/image7.jfif",
+    buttonText: "EXPLORE NOW",
+    buttonUrl: "#bikes"
+  },
+  {
+    title: "EoX Electric OKO",
+    description: "Specified range: 60 KM.",
+    imageUrl: "assets/images/image8.jfif",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   }
@@ -247,9 +268,9 @@ function renderCatalog(bikes, demoMode = false) {
     const top = document.createElement("div");
     top.className = "bike-card-topline";
     const brand = document.createElement("span");
-    brand.textContent = isDemo ? "WELLEXSA · DEMO" : bike.brand || "WELLEXSA SELECT";
+    brand.textContent = isDemo ? `${bike.brand || "WELLEXSA"} · DEMO` : bike.brand || "WELLEXSA SELECT";
     const category = document.createElement("span");
-    category.textContent = isDemo ? bike.specifications?.Category || "Concept model" : bike.batteryWarranty || "";
+    category.textContent = isDemo ? bike.category || bike.specifications?.Category || "Concept model" : bike.batteryWarranty || "";
     top.append(brand, category);
     const title = document.createElement("h3");
     title.textContent = bike.name || "Electric scooter";
@@ -261,21 +282,42 @@ function renderCatalog(bikes, demoMode = false) {
     description.textContent = bike.shortDescription || bike.description || "";
     const specs = document.createElement("div");
     specs.className = "bike-card-specs";
-    const battery = bike.specifications?.["Battery capacity"];
-    const values = isDemo
+    const additional = bike.specifications && typeof bike.specifications === "object" ? bike.specifications : {};
+    const batteryOptions = getBatteryRangeOptions(bike);
+    const optionTypes = [...new Set(batteryOptions.map((option) => option.batteryType))];
+    const controllerWarranty = additional["Motor Controller Warranty"];
+    const hasBatteryOptions = batteryOptions.length > 0;
+    const fixedRange = additional["Specified Range"];
+    const values = hasBatteryOptions
       ? [
-        ["Battery", battery ? `${battery} ${bike.batteryChemistry}` : bike.batteryChemistry],
-        ["Range", bike.range],
-        ["Top speed", bike.topSpeed],
-        ["Motor", bike.motor],
-        ["Charging", bike.chargingTime]
+        ...optionTypes.map((batteryType) => {
+          const options = batteryOptions.filter((option) => option.batteryType === batteryType);
+          const ranges = options.map((option) => option.range).join(", ");
+          return [batteryType, `${options[0].warranty} warranty · ${ranges}`];
+        }),
+        ["Motor controller warranty", controllerWarranty]
       ]
-      : [
-        ["Range", bike.range],
-        ["Top speed", bike.topSpeed],
-        ["Motor", bike.motor],
-        ["Charging", bike.chargingTime]
-      ];
+      : fixedRange
+        ? [
+          ["Battery type", additional["Battery Type"] || "Not specified"],
+          ["Battery warranty", additional["Battery Warranty"]],
+          ["Motor and controller warranty", additional["Motor and Controller Warranty"]],
+          ["Specified range", fixedRange]
+        ]
+        : isDemo
+        ? [
+          ["Battery", bike.batteryChemistry],
+          ["Range", bike.range],
+          ["Top speed", bike.topSpeed],
+          ["Motor", bike.motor],
+          ["Charging", bike.chargingTime]
+        ]
+        : [
+          ["Range", bike.range],
+          ["Top speed", bike.topSpeed],
+          ["Motor", bike.motor],
+          ["Charging", bike.chargingTime]
+        ];
     for (const [label, value] of values) {
       if (!value) continue;
       const block = document.createElement("div");
@@ -315,7 +357,7 @@ function renderDemoCatalog(noticeText) {
 }
 
 if (!isFirebaseConfigured) {
-  renderDemoCatalog("DEMO CATALOG ONLY — Firebase is not configured. These concept illustrations and sample specifications are not verified products, stock or prices.");
+  renderDemoCatalog("DEMO CATALOG ONLY — Firebase is not configured. These sample photos and specifications are not verified products, stock or prices.");
 } else {
   renderDemoCatalog("LIVE LISTINGS LOADING — The cards below are demonstration concepts only, not verified products, stock or prices.");
   const activeSlides = query(
@@ -355,13 +397,20 @@ function makeCartButton(bike) {
   button.type = "button";
   button.className = "button button-dark add-to-cart";
   const available = Number(bike.stockQuantity) || 0;
+  const needsOption = getBatteryRangeOptions(bike).length > 0;
   button.disabled = bike.demoData === true || available <= 0;
-  button.textContent = bike.demoData === true ? "Add to cart" : available <= 0 ? "Out of stock" : "Add to cart";
+  button.textContent = bike.demoData === true
+    ? "Add to cart"
+    : available <= 0 ? "Out of stock" : needsOption ? "Select battery / range" : "Add to cart";
   if (bike.demoData === true) {
     button.setAttribute("aria-label", `Add to cart unavailable for ${bike.name}; demo data only`);
     button.title = "Demo listing: add a verified price, photo and stock in the admin dashboard before publishing.";
   }
   button.addEventListener("click", () => {
+    if (needsOption) {
+      window.location.assign(`bike-details.html?id=${encodeURIComponent(bike.id)}`);
+      return;
+    }
     const added = addToCart(bike, 1);
     if (added) {
       button.textContent = "Added to cart";

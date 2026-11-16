@@ -1,6 +1,6 @@
 import { auth, db, isFirebaseConfigured } from "./firebase-config.js";
 import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { formatPrice, readCart, removeFromCart, updateCartQuantity, writeCart } from "./bikes.js";
+import { formatPrice, getBatteryRangeOptions, readCart, removeFromCart, updateCartQuantity, writeCart } from "./bikes.js";
 
 const itemsContainer = document.getElementById("cart-items");
 const message = document.getElementById("cart-message");
@@ -23,6 +23,10 @@ function render() {
     document.getElementById("cart-total").textContent = formatPrice(0);
     return;
   }
+  const quantitiesByBike = new Map();
+  cart.forEach((entry) => {
+    quantitiesByBike.set(entry.bikeId, (quantitiesByBike.get(entry.bikeId) || 0) + entry.quantity);
+  });
   cart.forEach((entry) => {
     const bike = products.get(entry.bikeId);
     if (!bike) {
@@ -40,7 +44,7 @@ function render() {
       remove.className = "text-button";
       remove.textContent = "Remove";
       remove.addEventListener("click", () => {
-        removeFromCart(entry.bikeId);
+        removeFromCart(entry.bikeId, entry.batteryOption);
         render();
       });
       notice.append(title, detail, remove);
@@ -49,7 +53,13 @@ function render() {
       return;
     }
     const stock = Number(bike.stockQuantity) || 0;
-    const valid = bike.status === "published" && stock > 0 && entry.quantity <= stock;
+    const batteryOptions = getBatteryRangeOptions(bike);
+    const selectedOption = batteryOptions.find((option) =>
+      option.batteryType === entry.batteryOption?.batteryType && option.range === entry.batteryOption?.range
+    );
+    const optionValid = batteryOptions.length ? Boolean(selectedOption) : !entry.batteryOption;
+    const valid = bike.status === "published" && stock > 0 &&
+      quantitiesByBike.get(entry.bikeId) <= stock && optionValid;
     if (!valid) canCheckout = false;
     total += Number(bike.price) * entry.quantity;
 
@@ -63,11 +73,21 @@ function render() {
     detail.className = "cart-item-detail";
     const title = document.createElement("h2");
     title.textContent = bike.name || "Electric scooter";
+    let batterySelection = null;
+    if (entry.batteryOption || batteryOptions.length) {
+      batterySelection = document.createElement("p");
+      batterySelection.textContent = selectedOption
+        ? `Battery: ${selectedOption.batteryType} · Range: ${selectedOption.range} · Warranty: ${selectedOption.warranty}`
+        : "Select an available battery and range from the product details page.";
+    }
     const price = document.createElement("p");
     price.textContent = `${formatPrice(bike.price)} each`;
     const status = document.createElement("p");
     status.className = `stock-badge${valid ? "" : " out-of-stock"}`;
-    status.textContent = valid ? `${stock} available` : (stock === 0 ? "Out of stock" : "Quantity exceeds available stock");
+    status.textContent = valid
+      ? `${stock} available`
+      : !optionValid ? "Battery / range selection is no longer available"
+        : stock === 0 ? "Out of stock" : "Quantity exceeds available stock";
     const controls = document.createElement("div");
     controls.className = "quantity-controls";
     const decrease = document.createElement("button");
@@ -75,7 +95,7 @@ function render() {
     decrease.textContent = "−";
     decrease.setAttribute("aria-label", `Decrease ${bike.name} quantity`);
     decrease.addEventListener("click", () => {
-      updateCartQuantity(bike.id, entry.quantity - 1);
+      updateCartQuantity(bike.id, entry.quantity - 1, entry.batteryOption);
       render();
     });
     const quantity = document.createElement("span");
@@ -83,11 +103,11 @@ function render() {
     const increase = document.createElement("button");
     increase.type = "button";
     increase.textContent = "+";
-    increase.disabled = entry.quantity >= stock;
+    increase.disabled = quantitiesByBike.get(entry.bikeId) >= stock;
     increase.setAttribute("aria-label", `Increase ${bike.name} quantity`);
     increase.addEventListener("click", () => {
-      if (entry.quantity < stock) {
-        updateCartQuantity(bike.id, entry.quantity + 1);
+      if (quantitiesByBike.get(entry.bikeId) < stock) {
+        updateCartQuantity(bike.id, entry.quantity + 1, entry.batteryOption);
         render();
       }
     });
@@ -96,11 +116,13 @@ function render() {
     remove.className = "text-button";
     remove.textContent = "Remove";
     remove.addEventListener("click", () => {
-      removeFromCart(bike.id);
+      removeFromCart(bike.id, entry.batteryOption);
       render();
     });
     controls.append(decrease, quantity, increase, remove);
-    detail.append(title, price, status, controls);
+    detail.append(title);
+    if (batterySelection) detail.append(batterySelection);
+    detail.append(price, status, controls);
     const lineTotal = document.createElement("strong");
     lineTotal.className = "cart-line-total";
     lineTotal.textContent = formatPrice(Number(bike.price) * entry.quantity);
@@ -120,10 +142,10 @@ if (!isFirebaseConfigured) {
   function subscribeToCart() {
     listeners.forEach((unsubscribe) => unsubscribe());
     listeners = [];
-    for (const item of readCart()) {
-      const unsubscribe = onSnapshot(doc(db, "bikes", item.bikeId), (snapshot) => {
-        if (snapshot.exists()) products.set(item.bikeId, { id: snapshot.id, ...snapshot.data() });
-        else products.delete(item.bikeId);
+    for (const bikeId of new Set(readCart().map((item) => item.bikeId))) {
+      const unsubscribe = onSnapshot(doc(db, "bikes", bikeId), (snapshot) => {
+        if (snapshot.exists()) products.set(bikeId, { id: snapshot.id, ...snapshot.data() });
+        else products.delete(bikeId);
         render();
       }, (error) => {
         message.textContent = "Current scooter availability could not be checked. Try refreshing the page.";

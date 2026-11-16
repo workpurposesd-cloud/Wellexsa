@@ -30,16 +30,20 @@ export const adminSignInWithUsername = onCall(
       const normalizedUsername = username.normalize("NFKC").trim().toLowerCase();
       const mapping = await db.collection("adminUsernames").doc(normalizedUsername).get();
       if (!mapping.exists || typeof mapping.data().uid !== "string") {
-        throw new Error("Administrator mapping was not found.");
+        throw new HttpsError("unauthenticated", adminLoginFailureMessage);
       }
 
       const user = await getAuth().getUser(mapping.data().uid);
       if (user.disabled || user.customClaims?.admin !== true || !user.email) {
-        throw new Error("Administrator account is unavailable.");
+        throw new HttpsError("unauthenticated", adminLoginFailureMessage);
       }
 
+      const apiKey = firebaseWebApiKey.value();
+      if (!apiKey) {
+        throw new HttpsError("failed-precondition", "Administrator sign-in is not configured.");
+      }
       const response = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(firebaseWebApiKey.value())}`,
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -47,15 +51,50 @@ export const adminSignInWithUsername = onCall(
           signal: AbortSignal.timeout(10000)
         }
       );
-      if (!response.ok) throw new Error("Administrator credentials were rejected.");
+      if (!response.ok) {
+        let identityErrorCode = "unknown";
+        let identityErrorMessage = "No Firebase error message provided";
+        try {
+          const errorResponse = await response.json();
+          identityErrorCode = errorResponse.error?.message || identityErrorCode;
+          identityErrorMessage = errorResponse.error?.message || identityErrorMessage;
+        } catch {
+          // Keep the callable response generic if Firebase returned a non-JSON error.
+        }
+        console.error("Admin Identity Toolkit sign-in failed", {
+          status: response.status,
+          code: identityErrorCode,
+          message: identityErrorMessage
+        });
+        if (["INVALID_PASSWORD", "EMAIL_NOT_FOUND", "INVALID_LOGIN_CREDENTIALS", "USER_DISABLED"].includes(identityErrorCode)) {
+          throw new HttpsError("unauthenticated", adminLoginFailureMessage);
+        }
+        if (["API_KEY_INVALID", "API_KEY_SERVICE_BLOCKED", "PROJECT_NOT_FOUND", "CONFIGURATION_NOT_FOUND", "OPERATION_NOT_ALLOWED"].includes(identityErrorCode)) {
+          throw new HttpsError("failed-precondition", "Administrator sign-in is not configured.");
+        }
+        if (identityErrorCode === "TOO_MANY_ATTEMPTS_TRY_LATER") {
+          throw new HttpsError("resource-exhausted", "Too many sign-in attempts. Try again later.");
+        }
+        throw new HttpsError("unavailable", "Administrator sign-in could not reach Firebase Authentication.");
+      }
       const identity = await response.json();
-      if (identity.localId !== user.uid) throw new Error("Administrator identity did not match.");
+      if (identity.localId !== user.uid) {
+        throw new HttpsError("unauthenticated", adminLoginFailureMessage);
+      }
 
       const claims = { ...user.customClaims, admin: true };
       const customToken = await getAuth().createCustomToken(user.uid, claims);
       return { token: customToken };
-    } catch {
-      throw new HttpsError("unauthenticated", adminLoginFailureMessage);
+    } catch (error) {
+      const errorMessage = typeof error?.message === "string" ? error.message : "No error message provided";
+      console.error("Admin username sign-in failed", {
+        code: error?.code || error?.name || "unknown",
+        message: errorMessage
+          .split(password).join("[redacted]")
+          .replace(/([?&]key=)[^&\s]+/gi, "$1[redacted]")
+      });
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("internal", "Administrator sign-in could not be completed.");
     }
   }
 );
@@ -110,25 +149,74 @@ function validateShipping(shipping) {
   }
 }
 
+function getBatteryRangeOptions(bike) {
+  const specifications = bike.specifications;
+  if (!specifications || typeof specifications !== "object" || Array.isArray(specifications)) return [];
+
+  return [
+    ["Lithium Battery", "Lithium Battery Warranty", "Lithium Battery Range Options"],
+    ["GEL Battery", "GEL Battery Warranty", "GEL Battery Range"]
+  ].flatMap(([batteryType, warrantyKey, rangesKey]) => {
+    const warranty = specifications[warrantyKey];
+    const ranges = specifications[rangesKey];
+    if (typeof warranty !== "string" || typeof ranges !== "string") return [];
+    return ranges.split(",").map((range) => range.trim()).filter(Boolean).map((range) => ({
+      batteryType,
+      range,
+      warranty
+    }));
+  });
+}
+
 async function getPricedItems(items) {
   if (!Array.isArray(items) || items.length < 1 || items.length > 8) {
-    throw new HttpsError("invalid-argument", "Choose between 1 and 8 different scooters.");
+    throw new HttpsError("invalid-argument", "Choose between 1 and 8 cart items.");
   }
   const seen = new Set();
+  const snapshots = new Map();
+  const quantitiesByBike = new Map();
   const result = [];
   for (const item of items) {
-    if (!item || typeof item.bikeId !== "string" || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100000 || seen.has(item.bikeId)) {
+    const hasBatteryOption = item?.batteryOption !== undefined && item.batteryOption !== null;
+    if (!item || typeof item.bikeId !== "string" || !Number.isInteger(item.quantity) ||
+        item.quantity < 1 || item.quantity > 100000 ||
+        (hasBatteryOption && (typeof item.batteryOption !== "object" || Array.isArray(item.batteryOption) ||
+          typeof item.batteryOption.batteryType !== "string" || typeof item.batteryOption.range !== "string"))) {
       throw new HttpsError("invalid-argument", "Cart contents are invalid.");
     }
-    seen.add(item.bikeId);
-    const snapshot = await db.collection("bikes").doc(item.bikeId).get();
+    const batteryOptionKey = hasBatteryOption
+      ? `${item.batteryOption.batteryType}\u0000${item.batteryOption.range}`
+      : "";
+    const lineKey = `${item.bikeId}\u0000${batteryOptionKey}`;
+    if (seen.has(lineKey)) throw new HttpsError("invalid-argument", "Cart contents are invalid.");
+    seen.add(lineKey);
+
+    let snapshot = snapshots.get(item.bikeId);
+    if (!snapshot) {
+      snapshot = await db.collection("bikes").doc(item.bikeId).get();
+      snapshots.set(item.bikeId, snapshot);
+    }
     if (!snapshot.exists) throw new HttpsError("failed-precondition", "A scooter in your cart is no longer available.");
     const bike = snapshot.data();
-    if (bike.status !== "published" || !Number.isInteger(bike.stockQuantity) || bike.stockQuantity < item.quantity) {
+    if (bike.status !== "published" || !Number.isInteger(bike.stockQuantity) || bike.stockQuantity < 0) {
       throw new HttpsError("failed-precondition", `${bike.name} does not have enough available stock.`);
     }
     if (!Number.isInteger(bike.price) || bike.price <= 0) {
       throw new HttpsError("failed-precondition", "A scooter price is not configured correctly.");
+    }
+    const availableOptions = getBatteryRangeOptions(bike);
+    const selectedOption = hasBatteryOption
+      ? availableOptions.find((option) =>
+        option.batteryType === item.batteryOption.batteryType && option.range === item.batteryOption.range
+      )
+      : null;
+    if ((availableOptions.length > 0 && !selectedOption) || (availableOptions.length === 0 && hasBatteryOption)) {
+      throw new HttpsError("invalid-argument", `Choose an available battery and range for ${bike.name}.`);
+    }
+    quantitiesByBike.set(item.bikeId, (quantitiesByBike.get(item.bikeId) || 0) + item.quantity);
+    const lineTotal = bike.price * item.quantity;
+    if (!Number.isSafeInteger(lineTotal)) {
+      throw new HttpsError("invalid-argument", "Order total is outside the supported payment range.");
     }
     result.push({
       bikeId: snapshot.id,
@@ -138,8 +226,21 @@ async function getPricedItems(items) {
       imageUrl: bike.imageUrls?.[0] || "",
       quantity: item.quantity,
       unitPrice: bike.price,
-      lineTotal: bike.price * item.quantity
+      lineTotal,
+      ...(selectedOption ? {
+        batteryOption: {
+          batteryType: selectedOption.batteryType,
+          range: selectedOption.range,
+          warranty: selectedOption.warranty
+        }
+      } : {})
     });
+  }
+  for (const [bikeId, quantity] of quantitiesByBike) {
+    const bike = snapshots.get(bikeId).data();
+    if (bike.stockQuantity < quantity) {
+      throw new HttpsError("failed-precondition", `${bike.name} does not have enough available stock.`);
+    }
   }
   const totalAmount = result.reduce((sum, item) => sum + item.lineTotal, 0);
   if (!Number.isSafeInteger(totalAmount) || totalAmount <= 0 || totalAmount > 10000000) {
@@ -280,16 +381,20 @@ async function commitCapturedPayment(orderSnapshot, payment) {
       throw new Error("Captured payment does not match the order.");
     }
 
-    const bikeSnapshots = [];
+    const quantitiesByBike = new Map();
     for (const item of order.items) {
-      const bikeRef = db.collection("bikes").doc(item.bikeId);
-      bikeSnapshots.push({ item, ref: bikeRef, snapshot: await transaction.get(bikeRef) });
+      quantitiesByBike.set(item.bikeId, (quantitiesByBike.get(item.bikeId) || 0) + item.quantity);
     }
-    const unavailable = bikeSnapshots.some(({ item, snapshot }) =>
+    const bikeSnapshots = [];
+    for (const [bikeId, quantity] of quantitiesByBike) {
+      const bikeRef = db.collection("bikes").doc(bikeId);
+      bikeSnapshots.push({ quantity, ref: bikeRef, snapshot: await transaction.get(bikeRef) });
+    }
+    const unavailable = bikeSnapshots.some(({ quantity, snapshot }) =>
       !snapshot.exists ||
       snapshot.data().status !== "published" ||
       !Number.isInteger(snapshot.data().stockQuantity) ||
-      snapshot.data().stockQuantity < item.quantity
+      snapshot.data().stockQuantity < quantity
     );
     if (unavailable) {
       transaction.update(orderRef, {
@@ -303,9 +408,9 @@ async function commitCapturedPayment(orderSnapshot, payment) {
       });
       return { paymentStatus: "stock_conflict", alreadyProcessed: false, shouldRefund: true };
     }
-    for (const { item, ref, snapshot } of bikeSnapshots) {
+    for (const { quantity, ref, snapshot } of bikeSnapshots) {
       transaction.update(ref, {
-        stockQuantity: snapshot.data().stockQuantity - item.quantity,
+        stockQuantity: snapshot.data().stockQuantity - quantity,
         updatedAt: FieldValue.serverTimestamp()
       });
     }
