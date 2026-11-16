@@ -19,7 +19,7 @@ const setMessage = (text, success) => {
 
 const friendlyError = (error) => {
   const messages = {
-    "auth/email-already-in-use": "An account with this email already exists. Try signing in instead.",
+    "auth/email-already-in-use": "This email is already registered. Please log in.",
     "auth/invalid-email": "Enter a valid email address.",
     "auth/invalid-credential": "The email or password is incorrect.",
     "auth/user-not-found": "The email or password is incorrect.",
@@ -66,14 +66,16 @@ function validMobileNumber(value) {
 }
 
 function customerDestination() {
-  return new URLSearchParams(window.location.search).get("return") === "checkout.html"
-    ? "checkout.html"
-    : "account.html";
+  const requestedDestination = new URLSearchParams(window.location.search).get("return");
+  return ["account.html", "checkout.html"].includes(requestedDestination)
+    ? requestedDestination
+    : "index.html";
 }
 
 const signupLink = document.querySelector('.auth-switch a[href="signup.html"]');
-if (signupLink && customerDestination() === "checkout.html") {
-  signupLink.href = "signup.html?return=checkout.html";
+const requestedDestination = customerDestination();
+if (signupLink && requestedDestination !== "index.html") {
+  signupLink.href = `signup.html?return=${encodeURIComponent(requestedDestination)}`;
 }
 
 document.querySelectorAll(".password-toggle").forEach((button) => {
@@ -88,8 +90,6 @@ document.querySelectorAll(".password-toggle").forEach((button) => {
 
 const signupForm = document.getElementById("signup-form");
 if (signupForm) {
-  let createdUser = null;
-  let profileDraft = null;
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!signupForm.reportValidity()) return;
@@ -121,32 +121,36 @@ if (signupForm) {
     submit.disabled = true;
     submit.textContent = "Creating account…";
     setMessage("");
+    let user;
     try {
-      if (!createdUser) {
-        const credential = await createUserWithEmailAndPassword(auth, email, password);
-        createdUser = credential.user;
-        profileDraft = { name, email: createdUser.email || email, mobile };
-      }
-      await updateProfile(createdUser, { displayName: profileDraft.name });
-      await setDoc(doc(db, "users", createdUser.uid), {
-        uid: createdUser.uid,
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      user = credential.user;
+    } catch (error) {
+      setMessage(friendlyError(error));
+      logAuthFailure("Customer signup", error);
+      submit.disabled = false;
+      submit.innerHTML = 'Create account <span aria-hidden="true">→</span>';
+      return;
+    }
+
+    const profileDraft = { name, email: user.email || email, mobile };
+    try {
+      await updateProfile(user, { displayName: name });
+    } catch (error) {
+      logAuthFailure("Customer profile name update", error);
+    }
+    try {
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
         ...profileDraft,
         createdAt: serverTimestamp()
       });
-      window.location.assign(customerDestination());
     } catch (error) {
-      if (createdUser) {
-        setMessage("Your Firebase account was created, but profile setup did not finish. Check your connection and retry profile setup.");
-        logAuthFailure("Firebase profile setup", error);
-      } else {
-        setMessage(friendlyError(error));
-        logAuthFailure("Customer signup", error);
-      }
-      submit.disabled = false;
-      submit.innerHTML = createdUser
-        ? 'Retry profile setup <span aria-hidden="true">→</span>'
-        : 'Create account <span aria-hidden="true">→</span>';
+      logAuthFailure("Customer profile save", error);
     }
+
+    setMessage("Your account has been created successfully!", true);
+    window.location.assign("index.html?notice=signup-success");
   });
 }
 
@@ -344,7 +348,9 @@ if (accountName) {
   } else {
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        window.location.replace("signin.html");
+        if (!window.__wellexsaLogoutInProgress) {
+          window.location.replace("signin.html?return=account.html");
+        }
         return;
       }
       try {
@@ -419,22 +425,3 @@ if (accountName) {
   }
 }
 
-const logoutButton = document.getElementById("logout-button");
-if (logoutButton) {
-  logoutButton.addEventListener("click", async () => {
-    if (!auth) {
-      window.location.assign("index.html");
-      return;
-    }
-    logoutButton.disabled = true;
-    try {
-      await signOut(auth);
-      window.location.assign("index.html");
-    } catch (error) {
-      logoutButton.disabled = false;
-      const accountMessage = document.getElementById("account-message");
-      if (accountMessage) accountMessage.textContent = "Sign out failed. Please try again.";
-      console.error("Sign out failed", error);
-    }
-  });
-}
