@@ -288,7 +288,7 @@ body { color: #252525; background: #fff; font-family: var(--font); font-size: 14
 .branch-actions a { color: #655b47; font-size: 9px; letter-spacing: .05em; text-transform: uppercase; }
 .whatsapp-button { color: #fff; background: #4e5e48; }
 .whatsapp-button:hover { background: #3e4d39; }
-.site-footer { min-height: 0; padding: 44px max(5.5%, calc((100% - 1440px) / 2)) 18px; display: grid; grid-template-columns: 1.2fr .8fr .9fr 1.4fr .8fr; gap: 30px; align-items: start; color: #fff; border: 0; background: #171717; }
+.site-footer { min-height: 0; padding: 44px max(5.5%, calc((100% - 1440px) / 2)) 18px; display: grid; grid-template-columns: 1.2fr .8fr .9fr 1.4fr .8fr .8fr; gap: 30px; align-items: start; color: #fff; border: 0; background: #171717; }
 .brand-footer { justify-self: start; padding: 3px 10px; background: transparent; }
 .brand-footer .brand-logo { width: 145px; height: 72px; }
 .footer-brand-block > p { margin: 15px 0 0; color: #c5c0b5; font: 400 15px/1.7 var(--display); }
@@ -1492,3 +1492,32 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     justify-self: center;
   }
 }
+
+.contact-social { margin-top: 26px; }
+.contact-social > .eyebrow { margin: 0 0 10px; font-size: 9px; letter-spacing: .13em; }
+.footer-social > p { max-width: 180px; }
+.social-links { display: flex; align-items: center; gap: 11px; }
+.social-link {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-platinum);
+  border-radius: 50%;
+  color: var(--color-graphite);
+  transition: color .2s ease, border-color .2s ease, transform .2s ease, background-color .2s ease;
+}
+.social-link svg { display: block; width: 19px; height: 19px; }
+.social-link:hover, .contact-social .social-link:hover { transform: translateY(-2px); }
+.social-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.social-link[data-social="instagram"]:hover,
+.social-link[data-social="instagram"]:focus-visible { color: #e4405f; border-color: currentColor; }
+.social-link[data-social="facebook"]:hover,
+.social-link[data-social="facebook"]:focus-visible { color: #1877f2; border-color: currentColor; }
+.site-footer .social-link { color: var(--color-platinum); border-color: rgba(255,255,255,.32); }
+.site-footer .social-link:hover { transform: translateY(-2px); background: rgba(255,255,255,.06); }
+.site-footer .social-link[data-social="instagram"]:hover,
+.site-footer .social-link[data-social="instagram"]:focus-visible { color: #e4405f; border-color: currentColor; }
+.site-footer .social-link[data-social="facebook"]:hover,
+.site-footer .social-link[data-social="facebook"]:focus-visible { color: #1877f2; border-color: currentColor; }
