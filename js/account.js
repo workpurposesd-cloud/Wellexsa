@@ -6,6 +6,7 @@ import {
 
 const accountPage = document.querySelector(".account-dashboard");
 const accountMessage = document.getElementById("account-message");
+const retryProfileButton = document.getElementById("retry-profile-button");
 const profileName = document.getElementById("profile-name");
 const profileEmail = document.getElementById("profile-email");
 const profileMobile = document.getElementById("profile-mobile");
@@ -22,6 +23,12 @@ let activeUser = null;
 let profileDetails = { name: "", email: "", mobile: "" };
 let ordersUnsubscribe = null;
 let accountLoadId = 0;
+let profileRequestId = 0;
+let profileLoading = false;
+let ordersRequestId = 0;
+let ordersLoading = false;
+
+const REQUEST_TIMEOUT_MS = 5000;
 
 function cleanValue(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -29,6 +36,26 @@ function cleanValue(value) {
 
 function permissionDenied(error) {
   return error?.code === "permission-denied";
+}
+
+function makeTimeoutError(requestName) {
+  const error = new Error(`${requestName} request timed out`);
+  error.code = "request-timeout";
+  return error;
+}
+
+function withRequestTimeout(request, requestName) {
+  let timeoutId;
+  const timeout = new Promise((resolve, reject) => {
+    timeoutId = setTimeout(() => reject(makeTimeoutError(requestName)), REQUEST_TIMEOUT_MS);
+  });
+  return Promise.race([request, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
+function isCurrentAccountLoad(user, loadId) {
+  return accountLoadId === loadId &&
+    activeUser?.uid === user.uid &&
+    auth.currentUser?.uid === user.uid;
 }
 
 function setAccountMessage(text, state = "") {
@@ -86,7 +113,7 @@ function formatOrderDate(timestamp) {
       ? date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
       : "";
   } catch (error) {
-    console.warn("Could not format customer order date", error);
+    console.warn("Could not format customer order date", { code: error?.code || error?.name || "unknown" });
     return "";
   }
 }
@@ -140,90 +167,177 @@ function createOrderCard(orderDocument) {
   return card;
 }
 
-function listenForOrders(user) {
+function renderOrders(snapshot) {
+  if (snapshot.empty) {
+    showOrdersEmptyState();
+    return;
+  }
+
+  const sortedOrders = snapshot.docs.slice().sort((first, second) =>
+    (second.data().createdAt?.toMillis?.() || 0) - (first.data().createdAt?.toMillis?.() || 0)
+  );
+  accountOrders.replaceChildren(...sortedOrders.map(createOrderCard));
+}
+
+function showOrdersError(user, loadId, requestId, error) {
+  if (!isCurrentAccountLoad(user, loadId) || requestId !== ordersRequestId) return;
+  const errorState = document.createElement("div");
+  errorState.className = "account-orders-error";
+  const message = document.createElement("p");
+  message.textContent = permissionDenied(error)
+    ? "You don't have permission to view these orders. Contact the showroom if you believe this is an error."
+    : error?.code === "request-timeout"
+      ? "Your orders didn't respond within 5 seconds. Check your connection and retry."
+      : "Your orders couldn't be loaded. Please try again.";
+  const retryButton = document.createElement("button");
+  retryButton.className = "account-retry-button";
+  retryButton.type = "button";
+  retryButton.textContent = "Retry orders";
+  retryButton.addEventListener("click", () => {
+    if (isCurrentAccountLoad(user, loadId) && !ordersLoading) void loadOrders(user, loadId);
+  });
+  errorState.append(message, retryButton);
+  accountOrders.replaceChildren(errorState);
+  console.error("Could not load customer orders", { code: error?.code || error?.name || "unknown" });
+}
+
+async function loadOrders(user, loadId) {
+  if (!isCurrentAccountLoad(user, loadId) || ordersLoading) return;
+
+  const requestId = ++ordersRequestId;
+  let initialSnapshotReceived = false;
+  let initialRequestSettled = false;
+  let listenerActive = true;
+  let timeoutId;
+  let unsubscribe = null;
+  ordersLoading = true;
   stopOrdersListener();
   accountOrders.replaceChildren(Object.assign(document.createElement("p"), {
     className: "loading-state",
     textContent: "Loading your orders…"
   }));
 
-  const userOrders = query(collection(db, "orders"), where("userId", "==", user.uid));
-  ordersUnsubscribe = onSnapshot(userOrders, (snapshot) => {
-    if (auth.currentUser?.uid !== user.uid) return;
-    if (snapshot.empty) {
-      showOrdersEmptyState();
-      return;
-    }
+  try {
+    const userOrders = query(collection(db, "orders"), where("userId", "==", user.uid));
+    await new Promise((resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        if (initialRequestSettled) return;
+        initialRequestSettled = true;
+        listenerActive = false;
+        reject(makeTimeoutError("Orders"));
+      }, REQUEST_TIMEOUT_MS);
+      unsubscribe = onSnapshot(userOrders, (snapshot) => {
+        if (!listenerActive || !isCurrentAccountLoad(user, loadId) || requestId !== ordersRequestId) return;
+        renderOrders(snapshot);
+        if (!initialSnapshotReceived) {
+          initialSnapshotReceived = true;
+          initialRequestSettled = true;
+          resolve();
+        }
+      }, (error) => {
+        if (!listenerActive || !isCurrentAccountLoad(user, loadId) || requestId !== ordersRequestId) return;
+        if (!initialSnapshotReceived) {
+          if (initialRequestSettled) return;
+          initialRequestSettled = true;
+          listenerActive = false;
+          reject(error);
+          return;
+        }
 
-    const sortedOrders = snapshot.docs.slice().sort((first, second) =>
-      (second.data().createdAt?.toMillis?.() || 0) - (first.data().createdAt?.toMillis?.() || 0)
-    );
-    accountOrders.replaceChildren(...sortedOrders.map(createOrderCard));
-  }, (error) => {
-    if (auth.currentUser?.uid !== user.uid) return;
-    accountOrders.className = "order-list";
-    const errorMessage = document.createElement("p");
-    errorMessage.className = "account-orders-error";
-    errorMessage.textContent = permissionDenied(error)
-      ? "You don't have permission to view these orders. Contact the showroom if you believe this is an error."
-      : "Your orders couldn't be loaded. Please try again later.";
-    accountOrders.replaceChildren(errorMessage);
-    console.error("Could not load customer orders", {
-      code: error?.code || "unknown",
-      message: typeof error?.message === "string" ? error.message : "No Firestore error message provided"
+        listenerActive = false;
+        if (ordersUnsubscribe === unsubscribe) ordersUnsubscribe = null;
+        unsubscribe?.();
+        showOrdersError(user, loadId, requestId, error);
+      });
+      ordersUnsubscribe = unsubscribe;
     });
-  });
+  } catch (error) {
+    listenerActive = false;
+    if (unsubscribe) unsubscribe();
+    if (ordersUnsubscribe === unsubscribe) ordersUnsubscribe = null;
+    showOrdersError(user, loadId, requestId, error);
+  } finally {
+    clearTimeout(timeoutId);
+    if (requestId === ordersRequestId) ordersLoading = false;
+  }
 }
 
-async function loadAccount(user) {
+async function loadProfile(user, loadId) {
+  if (!isCurrentAccountLoad(user, loadId) || profileLoading) return;
+
+  const requestId = ++profileRequestId;
+  profileLoading = true;
+  retryProfileButton.hidden = true;
+  editProfileButton.disabled = true;
+  setAccountMessage("");
+
+  try {
+    const profileSnapshot = await withRequestTimeout(
+      getDoc(doc(db, "users", user.uid)),
+      "Profile"
+    );
+    if (!isCurrentAccountLoad(user, loadId) || requestId !== profileRequestId) return;
+
+    renderProfile(user, profileSnapshot.exists() ? profileSnapshot.data() : {});
+    if (!profileSnapshot.exists()) {
+      setAccountMessage("Your saved profile is missing. Add your name and mobile number to complete it.", "info");
+    }
+  } catch (error) {
+    if (!isCurrentAccountLoad(user, loadId) || requestId !== profileRequestId) return;
+    renderProfile(user, {});
+    setAccountMessage(permissionDenied(error)
+      ? "Your account is signed in, but Firestore denied access to the saved profile. Retry or contact the showroom."
+      : error?.code === "request-timeout"
+        ? "Saved profile details didn't respond within 5 seconds. Check your connection and retry."
+        : "Your account is signed in, but saved profile details couldn't be loaded. Please retry.", "error");
+    retryProfileButton.hidden = false;
+    console.error("Could not load customer profile", { code: error?.code || error?.name || "unknown" });
+  } finally {
+    if (requestId === profileRequestId) profileLoading = false;
+    if (isCurrentAccountLoad(user, loadId) && requestId === profileRequestId) {
+      accountPage.dataset.state = "ready";
+      editProfileButton.hidden = false;
+      editProfileButton.disabled = false;
+      accountLogoutButton.disabled = false;
+    }
+  }
+}
+
+function loadAccount(user) {
   const loadId = ++accountLoadId;
   activeUser = user;
+  profileRequestId += 1;
+  profileLoading = false;
+  ordersRequestId += 1;
+  ordersLoading = false;
   stopOrdersListener();
   accountPage.dataset.state = "loading";
   setAccountMessage("");
   setEditMessage("");
+  retryProfileButton.hidden = true;
   editForm.hidden = true;
   editName.value = "";
   editMobile.value = "";
+  renderProfile(user, {});
+  editProfileButton.hidden = true;
+  accountLogoutButton.disabled = false;
   accountOrders.replaceChildren(Object.assign(document.createElement("p"), {
     className: "loading-state",
     textContent: "Loading your orders…"
   }));
-  profileName.textContent = "Loading…";
-  profileEmail.textContent = "Loading…";
-  profileMobile.textContent = "Loading…";
-  editProfileButton.hidden = true;
 
-  let profileSnapshot = null;
-  let profileError = null;
-  try {
-    profileSnapshot = await getDoc(doc(db, "users", user.uid));
-  } catch (error) {
-    profileError = error;
-  }
-
-  if (loadId !== accountLoadId || auth.currentUser?.uid !== user.uid) return;
-
-  const profileData = profileSnapshot?.exists() ? profileSnapshot.data() : {};
-  renderProfile(user, profileData);
-  accountPage.dataset.state = "ready";
-  editProfileButton.hidden = false;
-  editProfileButton.disabled = false;
-  accountLogoutButton.disabled = false;
-
-  if (profileError) {
-    setAccountMessage(permissionDenied(profileError)
-      ? "Your account is signed in, but Firestore denied access to the saved profile. You can still try editing it or contact the showroom."
-      : "Your account is signed in, but saved profile details couldn't be loaded. You can still try editing your profile.", "error");
-    console.error("Could not load customer profile", {
-      code: profileError?.code || "unknown",
-      message: typeof profileError?.message === "string" ? profileError.message : "No Firestore error message provided"
-    });
-  } else if (!profileSnapshot.exists()) {
-    setAccountMessage("Your saved profile is missing. Add your name and mobile number to complete it.", "info");
-  }
-
-  listenForOrders(user);
+  void loadProfile(user, loadId).catch((error) => {
+    if (!isCurrentAccountLoad(user, loadId)) return;
+    accountPage.dataset.state = "ready";
+    editProfileButton.hidden = false;
+    editProfileButton.disabled = false;
+    setAccountMessage("Saved profile details couldn't be loaded. Please retry.", "error");
+    retryProfileButton.hidden = false;
+    console.error("Could not initialize customer profile", { code: error?.code || error?.name || "unknown" });
+  });
+  void loadOrders(user, loadId).catch((error) => {
+    showOrdersError(user, loadId, ordersRequestId, error);
+  });
 }
 
 async function saveProfile(event) {
@@ -277,8 +391,7 @@ async function saveProfile(event) {
     } catch (error) {
       authNameSynced = false;
       console.error("Could not synchronize customer display name", {
-        code: error?.code || "unknown",
-        message: typeof error?.message === "string" ? error.message : "No Firebase error message provided"
+        code: error?.code || error?.name || "unknown"
       });
     }
 
@@ -301,8 +414,7 @@ async function saveProfile(event) {
         : "Your profile couldn't be saved. Check your connection and try again.";
     setEditMessage(message, "error");
     console.error("Could not save customer profile", {
-      code: error?.code || "unknown",
-      message: typeof error?.message === "string" ? error.message : "No Firestore error message provided"
+      code: error?.code || error?.name || "unknown"
     });
   } finally {
     saveProfileButton.disabled = false;
@@ -325,6 +437,11 @@ document.getElementById("cancel-profile-edit").addEventListener("click", () => {
 
 editForm.addEventListener("submit", saveProfile);
 
+retryProfileButton.addEventListener("click", () => {
+  const user = activeUser;
+  if (user && auth.currentUser?.uid === user.uid) void loadProfile(user, accountLoadId);
+});
+
 accountLogoutButton.addEventListener("click", async () => {
   if (!auth || !activeUser) return;
   accountLogoutButton.disabled = true;
@@ -337,10 +454,7 @@ accountLogoutButton.addEventListener("click", async () => {
     window.__wellexsaLogoutInProgress = false;
     accountLogoutButton.disabled = false;
     setAccountMessage("You couldn't be signed out. Please try again.", "error");
-    console.error("Customer sign-out failed", {
-      code: error?.code || "unknown",
-      message: typeof error?.message === "string" ? error.message : "No Firebase error message provided"
-    });
+    console.error("Customer sign-out failed", { code: error?.code || error?.name || "unknown" });
   }
 });
 
@@ -351,6 +465,7 @@ if (!isFirebaseConfigured || !auth || !db) {
   profileMobile.textContent = "Unavailable";
   accountOrders.textContent = "Order history is unavailable until Firebase is configured.";
   setAccountMessage("Firebase account services are unavailable. Please try again later.", "error");
+  retryProfileButton.hidden = true;
   editProfileButton.disabled = true;
   accountLogoutButton.disabled = true;
 } else {
@@ -358,8 +473,13 @@ if (!isFirebaseConfigured || !auth || !db) {
   onAuthStateChanged(auth, (user) => {
     if (!user) {
       accountLoadId += 1;
+      profileRequestId += 1;
+      profileLoading = false;
+      ordersRequestId += 1;
+      ordersLoading = false;
       stopOrdersListener();
       activeUser = null;
+      retryProfileButton.hidden = true;
       accountOrders.replaceChildren();
       profileName.textContent = "";
       profileEmail.textContent = "";
@@ -369,11 +489,6 @@ if (!isFirebaseConfigured || !auth || !db) {
       }
       return;
     }
-    loadAccount(user).catch((error) => {
-      if (auth.currentUser?.uid !== user.uid) return;
-      accountPage.dataset.state = "error";
-      setAccountMessage("Your account couldn't be loaded. Please refresh and try again.", "error");
-      console.error("Could not initialize customer account", error);
-    });
+    loadAccount(user);
   });
 }
