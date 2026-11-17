@@ -83,7 +83,8 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow get: if isOwner(uid) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'mobile', 'createdAt'])
         && request.resource.data.keys().hasAll(['uid', 'name', 'email', 'mobile', 'createdAt'])
