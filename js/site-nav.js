@@ -5,6 +5,8 @@ import { readCart } from "./bikes.js";
 const menuButton = document.querySelector(".menu-toggle");
 const nav = document.querySelector(".main-nav");
 const header = document.querySelector(".site-header");
+const cartLink = document.querySelector(".nav-cart");
+const mobileNavigation = window.matchMedia("(max-width: 767px)");
 const cartCount = readCart().reduce((total, item) => total + item.quantity, 0);
 
 document.querySelectorAll(".cart-count").forEach((counter) => {
@@ -49,7 +51,7 @@ if (header && !header.querySelector(".nav-profile")) {
 
   const profileIcon = document.createElement("span");
   profileIcon.className = "nav-profile-icon";
-  profileIcon.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="9" r="3"></circle><path d="M6.5 18.5c1.2-2.6 3.1-3.8 5.5-3.8s4.3 1.2 5.5 3.8"></path></svg>';
+  profileIcon.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="3"></circle><path d="M6.5 18.5c1.2-2.6 3.1-3.8 5.5-3.8s4.3 1.2 5.5 3.8"></path></svg>';
 
   const profileStatus = document.createElement("span");
   profileStatus.className = "nav-profile-status";
@@ -116,6 +118,26 @@ if (header && !header.querySelector(".nav-profile")) {
     profileButton.setAttribute("aria-label", open ? "Close account menu" : getProfileButtonLabel());
   }
 
+  function syncHeaderLayout() {
+    if (!header || !nav || !cartLink) return;
+    if (mobileNavigation.matches) nav.append(cartLink, profileRegion);
+    else header.append(cartLink, profileRegion);
+    nav.classList.remove("is-open");
+    if (menuButton) {
+      menuButton.setAttribute("aria-expanded", "false");
+      menuButton.setAttribute("aria-label", "Open navigation");
+    }
+    setProfileMenuOpen(false);
+  }
+
+  syncHeaderLayout();
+  mobileNavigation.addEventListener("change", syncHeaderLayout);
+  menuButton?.addEventListener("click", () => {
+    if (mobileNavigation.matches) {
+      setProfileMenuOpen(menuButton.getAttribute("aria-expanded") === "true");
+    }
+  });
+
   function getProfileButtonLabel() {
     if (profileRegion.dataset.authState === "loading") return "Checking account status";
     if (profileRegion.dataset.authState === "unavailable") return "Account status unavailable";
@@ -138,7 +160,7 @@ if (header && !header.querySelector(".nav-profile")) {
     profileLink.hidden = !signedIn;
     ordersLink.hidden = !signedIn;
     logoutButton.hidden = !signedIn;
-    setProfileMenuOpen(false);
+    setProfileMenuOpen(mobileNavigation.matches && Boolean(nav?.classList.contains("is-open")));
   }
 
   function renderAuthUnavailable() {
@@ -153,7 +175,7 @@ if (header && !header.querySelector(".nav-profile")) {
     profileLink.hidden = true;
     ordersLink.hidden = true;
     logoutButton.hidden = true;
-    setProfileMenuOpen(false);
+    setProfileMenuOpen(mobileNavigation.matches && Boolean(nav?.classList.contains("is-open")));
   }
 
   profileButton.addEventListener("click", () => {
@@ -161,7 +183,9 @@ if (header && !header.querySelector(".nav-profile")) {
   });
 
   document.addEventListener("click", (event) => {
-    if (!profileRegion.contains(event.target)) setProfileMenuOpen(false);
+    const openingMobileMenu = mobileNavigation.matches &&
+      menuButton?.contains(event.target) && nav?.classList.contains("is-open");
+    if (!profileRegion.contains(event.target) && !openingMobileMenu) setProfileMenuOpen(false);
   });
 
   document.addEventListener("keydown", (event) => {
@@ -228,10 +252,12 @@ if (homepage && noticeText) {
   toast.setAttribute("role", "status");
   toast.setAttribute("aria-live", "polite");
   toast.textContent = noticeText;
-  document.body.append(toast);
+  const main = document.querySelector("main");
+  if (main) main.before(toast);
+  else document.body.append(toast);
 
   const cleanUrl = new URL(window.location.href);
   cleanUrl.searchParams.delete("notice");
   window.history.replaceState(window.history.state, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
-  window.setTimeout(() => toast.remove(), 5000);
+  window.setTimeout(() => toast.remove(), 3000);
 }

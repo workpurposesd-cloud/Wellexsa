@@ -74,13 +74,13 @@ The provisioning helper creates or updates the Firebase Auth account, assigns th
    ```
 
    The operator also needs permission to manage Cloud Firestore. Keep all service-account keys outside the website and source-control directory; never upload or commit them.
-4. Provision the admin using the business-controlled email and the requested username:
+4. Provision the admin using a dedicated business-controlled email that is not already registered as a customer. The setup refuses to promote an existing non-admin account, preserving customer login and account separation. The default initial username is `Ummala`:
 
    ```powershell
-   npm run provision-admin -- admin@example.com Ummala
+   npm run provision-admin -- admin@example.com
    ```
 
-   Enter the temporary password when prompted. On first username sign-in, the dashboard is blocked until the administrator chooses a new password of at least 12 characters. Never put either password in website files, shell command arguments, or Firestore. To revoke access, use a trusted Admin SDK call to remove the `admin` claim and delete the matching `adminUsernames/{normalizedUsername}` mapping.
+   Enter the temporary password when prompted; input is not echoed. On first username sign-in, the dashboard is blocked until the administrator chooses a new password of at least 12 characters. An alternate username can be supplied for a later administrator. Never put either password in website files, shell command arguments, or Firestore. To revoke access, use a trusted Admin SDK call to remove the `admin` claim and delete the matching `adminUsernames/{normalizedUsername}` mapping.
 
 The admin login callable verifies the username mapping and checks the submitted password against Firebase Authentication over the Identity Toolkit API before minting a short-lived Firebase custom sign-in token. It returns a generic error for unknown usernames and incorrect passwords. `FIREBASE_WEB_API_KEY` is a public Firebase Web App API key; security still depends on the deployed rules and admin claims.
 
@@ -89,7 +89,7 @@ The admin login callable verifies the username mapping and checks the submitted 
 The first deployment prompts for the `FIREBASE_WEB_API_KEY` string parameter. Supply the same key copied from the Web App configuration. Deploy the username login and required password-change functions:
 
 ```powershell
-firebase deploy --only functions:adminSignInWithUsername,functions:completeAdminPasswordChange --project wellexsa
+firebase deploy --only functions:adminSignInWithUsername,functions:completeAdminPasswordChange,functions:listAdminCustomers --project wellexsa
 ```
 
 Deploy other payment Functions only after completing the separate Razorpay setup and secret configuration below.
@@ -133,6 +133,12 @@ razorpayPaymentId, paymentCapturedAt, refundId/refundStatus, createdAt, updatedA
 ```
 
 Customers may read only their own orders; admins may read orders for support. `paymentStatus` is controlled by payment verification/webhooks and is never editable from the admin UI. `orderStatus` tracks fulfillment separately. The backend checks selected battery/range options and aggregate stock at checkout and again in a Firestore transaction after confirmed capture; duplicate webhook/callback processing does not deduct stock twice. If a paid payment cannot be fulfilled because stock changed concurrently, the order is flagged for admin review/refund rather than overselling.
+
+### Customer management
+
+The customer dashboard uses Firebase Authentication as its account directory and joins each record with the existing `users/{uid}` profile (`name`, `email`, and `mobile`). A server-only `listAdminCustomers` callable requires the verified `admin` custom claim and rejects admins who still need to change their temporary password. It returns only the fields needed by the table; passwords, tokens and credentials are never included. Registration and last-login times come from Firebase Authentication user metadata, not client-written timestamps. The callable filters and paginates results, and it excludes administrator accounts. No customer collection is duplicated.
+
+Firestore rules already restrict customer profile reads to the owner or an administrator and deny client access to `adminUsernames`; the customer directory does not require broader rules. The callable uses the Admin SDK only on the server.
 
 ### `checkoutRequests/{uid_requestId}` and `paymentIssues/{issueId}`
 
@@ -189,9 +195,10 @@ python -m http.server 8000
 
 Open `http://localhost:8000` and test the authentication paths separately:
 
-1. **Customer signup:** open `signup.html`, submit a valid name, email, mobile number and matching password of at least 8 characters. Confirm the user appears in Firebase Authentication, a matching `users/{uid}` profile is created in Firestore, and signup returns to the homepage with a success notice. If profile persistence fails after Auth creates the user, signup remains successful; check the browser console and Firestore rules/connection for the profile-write error.
+1. **Customer signup:** in a test Firebase project, open `signup.html`, submit a valid name, email, mobile number and matching password of at least 8 characters. Confirm the user appears in Firebase Authentication and a matching `users/{uid}` profile is created in Firestore. If the profile write fails after Auth creates the user, signup directs the signed-in customer to My Account to complete their profile instead of silently reporting a full success.
 2. **Customer login:** sign out, open `signin.html`, and sign in with that email and password. Normal sign-in returns to the homepage; only an explicit protected-page return such as `?return=account.html` or `?return=checkout.html` resumes that page. Verify the shared profile icon opens the customer menu while signed in and Sign In / Create Account while logged out. Try a wrong password and verify the page displays a useful error without exposing credentials.
 3. **Admin login:** provision the administrator with the trusted setup above, then use its username and password at `admin-login.html`. First sign-in must redirect to `admin-change-password.html`; after setting the required new password, subsequent sign-in should reach `admin-dashboard.html`. A normal customer account must not pass the dashboard's custom-claim check.
+4. **Customer management:** while signed in as the provisioned administrator, confirm totals, last-30-day registrations and recent logins. Search by a test customer's name, email and mobile; filter registration dates and account status; navigate pages, change page size and refresh. Check that the row uses the UID profile, Auth registration/last-sign-in metadata, a `mailto:` link only for an available email, and a `tel:` link only for an available mobile. A customer with no last-sign-in metadata remains in the table. Confirm a signed-in non-admin is denied by the `listAdminCustomers` callable.
 
 If signup returns `400`, confirm the Web App config belongs to the intended existing project, Email/Password is enabled, and the API key is not blocking Identity Toolkit. For admin sign-in, also confirm the `FIREBASE_WEB_API_KEY` Functions parameter matches the Web App key and the admin callable functions are deployed. Then test protected account/order history and sign-out. Try publishing a bike with missing required fields, an invalid image type, and an image larger than 10 MB. Set stock to 10, add to cart, test quantity limits, and check out in Razorpay test mode. Verify failed/cancelled payments do not reduce stock, a verified successful payment reduces it once, zero stock disables purchase, and repeated webhook delivery does not double-deduct. Try order filtering/status updates and confirm the admin UI cannot set a payment to successful.
 

@@ -93,7 +93,38 @@
       <div id="admin-orders" class="order-list"><p class="loading-state">Loading orders…</p></div>
     </section>
     <section class="dashboard-section" id="payments"><div class="dashboard-section-heading"><div><p class="eyebrow">GATEWAY RECORDS</p><h2>Payment records</h2></div></div><div id="payment-records" class="order-list"><p class="loading-state">Loading payment records…</p></div></section>
-    <section class="dashboard-section" id="customers"><div class="dashboard-section-heading"><div><p class="eyebrow">CUSTOMER INFORMATION</p><h2>Recent customers</h2></div></div><div id="customer-list" class="order-list"><p class="loading-state">Loading customer information…</p></div></section>
+    <section class="dashboard-section customer-management" id="customers">
+      <div class="dashboard-section-heading">
+        <div><p class="eyebrow">CUSTOMER INFORMATION</p><h2>Customer management</h2><p>Registered accounts and trusted authentication activity.</p></div>
+        <button class="button button-outline" id="customer-refresh" type="button">Refresh customers</button>
+      </div>
+      <div class="customer-metrics-grid" aria-label="Customer statistics">
+        <article class="stat-card"><span>Total registered customers</span><strong id="customer-total">—</strong><small>Active and disabled accounts</small></article>
+        <article class="stat-card"><span>New registrations</span><strong id="customer-new-registrations">—</strong><small>Last 30 days</small></article>
+        <section class="customer-recent-logins"><div><p class="eyebrow">LOGIN ACTIVITY</p><h3>Recent customer logins</h3></div><div id="recent-customer-logins"><p class="loading-state">Loading login activity…</p></div></section>
+      </div>
+      <div class="customer-filters">
+        <label class="customer-search-label" for="customer-search">Search customers<input id="customer-search" type="search" placeholder="Name, email or mobile number"></label>
+        <label for="customer-date-from">Registered from<input id="customer-date-from" type="date"></label>
+        <label for="customer-date-to">Registered to<input id="customer-date-to" type="date"></label>
+        <label for="customer-status-filter">Account status<select id="customer-status-filter"><option value="">All statuses</option><option value="active">Active</option><option value="disabled">Disabled</option></select></label>
+      </div>
+      <p class="customer-dashboard-message" id="customer-dashboard-message" role="status" aria-live="polite"></p>
+      <div class="customer-table-wrap">
+        <table class="customer-table">
+          <thead><tr><th scope="col">Customer name</th><th scope="col">Email address</th><th scope="col">Mobile number</th><th scope="col">Registered</th><th scope="col">Last login</th><th scope="col">Status</th><th scope="col">Customer UID</th></tr></thead>
+          <tbody id="customer-table-body"><tr><td colspan="7">Loading customer records…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="customer-pagination">
+        <p id="customer-pagination-status" aria-live="polite">Loading customer records…</p>
+        <div class="customer-pagination-controls">
+          <label for="customer-page-size">Rows per page<select id="customer-page-size"><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option></select></label>
+          <button class="button button-outline button-small" id="customer-previous-page" type="button" disabled>Previous</button>
+          <button class="button button-outline button-small" id="customer-next-page" type="button" disabled>Next</button>
+        </div>
+      </div>
+    </section>
     <section class="dashboard-section" id="showroom"><div class="dashboard-section-heading"><div><p class="eyebrow">WELLEXSA MOTORS</p><h2>Showroom information</h2></div></div><div class="showroom-admin-card"><p>Phone: <a href="tel:9989992230">9989992230</a> · <a href="tel:9121562577">9121562577</a> · <a href="tel:9063182277">9063182277</a></p><p>Branches: Near Sree Bakery, Down Stairs, Kistareddipet · Opposite Lake View Villas, Kistareddipet · Fabindia Building, Madeenaguda.</p><p>Update branch locations in Google Maps after confirming each showroom pin; this project does not assume unverified coordinates.</p></div></section>
   </main>
   <script type="module" src="js/admin.js"></script>

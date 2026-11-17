@@ -3,12 +3,12 @@ import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
 const email = process.argv[2]?.trim().toLowerCase();
-const username = process.argv[3]?.trim();
+const username = process.argv[3]?.trim() || "Ummala";
 const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
 const normalizedUsername = username?.normalize("NFKC").toLowerCase();
 
 if (!email || !email.includes("@") || !/^[a-zA-Z0-9._-]{3,32}$/.test(username || "") || !projectId) {
-  console.error("Usage: set GOOGLE_CLOUD_PROJECT, then run npm run provision-admin -- admin@example.com Username");
+  console.error("Usage: set GOOGLE_CLOUD_PROJECT, then run npm run provision-admin -- admin@example.com [Username] (defaults to Ummala)");
   process.exitCode = 1;
 } else {
   try {
@@ -33,6 +33,9 @@ if (!email || !email.includes("@") || !/^[a-zA-Z0-9._-]{3,32}$/.test(username ||
 
     if (existingMapping.exists && existingUser.email.toLowerCase() !== email) {
       throw new Error("That username is already assigned to another account.");
+    }
+    if (existingUser && existingUser.customClaims?.admin !== true) {
+      throw new Error("This email belongs to a non-administrator account. Use a dedicated administrator email.");
     }
 
     const user = existingUser

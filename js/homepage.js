@@ -14,7 +14,7 @@ if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-mot
       entry.target.classList.add("is-visible");
       observer.unobserve(entry.target);
     });
-  }, { threshold: 0.08, rootMargin: "0px 0px -30px 0px" });
+  }, { threshold: 0.01, rootMargin: "0px 0px -30px 0px" });
   document.querySelectorAll(".bikes-section, .benefits-section, .intro-strip, .contact-section, .visit-banner")
     .forEach((section) => {
       section.classList.add("reveal-on-scroll");
@@ -137,6 +137,7 @@ function startSliderAutoplay() {
 function renderSlides(records) {
   stopSliderAutoplay();
   sliderTrack.replaceChildren();
+  sliderIndicators.replaceChildren();
   slides = records.length ? records : fallbackSlides;
 
   slides.forEach((slide, index) => {

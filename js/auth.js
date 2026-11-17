@@ -5,7 +5,7 @@ import {
   updateProfile
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
-  collection, doc, getDoc, onSnapshot, query, setDoc, serverTimestamp, where
+  doc, setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 
@@ -147,6 +147,9 @@ if (signupForm) {
       });
     } catch (error) {
       logAuthFailure("Customer profile save", error);
+      setMessage("Your account was created, but your profile details could not be saved. Complete them in My Account.", false);
+      window.location.assign("account.html?profile=setup");
+      return;
     }
 
     setMessage("Your account has been created successfully!", true);
@@ -198,11 +201,28 @@ if (signinForm) {
     submit.disabled = true;
     submit.textContent = "Signing in…";
     setMessage("");
+    let authenticatedUser = null;
     try {
       const data = new FormData(signinForm);
-      await signInWithEmailAndPassword(auth, normalizeEmail(data.get("email")), data.get("password"));
+      const credential = await signInWithEmailAndPassword(auth, normalizeEmail(data.get("email")), data.get("password"));
+      authenticatedUser = credential.user;
+      const token = await credential.user.getIdTokenResult();
+      if (token.claims.admin === true) {
+        await signOut(auth);
+        setMessage("Administrator accounts must use the dedicated administrator sign-in page.", false);
+        submit.disabled = false;
+        submit.innerHTML = 'Sign in <span aria-hidden="true">→</span>';
+        return;
+      }
       window.location.assign(customerDestination());
     } catch (error) {
+      if (authenticatedUser && auth.currentUser?.uid === authenticatedUser.uid) {
+        try {
+          await signOut(auth);
+        } catch (signOutError) {
+          logAuthFailure("Customer sign-in cleanup", signOutError);
+        }
+      }
       setMessage(friendlyError(error));
       logAuthFailure("Customer sign-in", error);
       submit.disabled = false;
@@ -339,89 +359,4 @@ if (adminPasswordForm) {
   });
 }
 
-const accountName = document.getElementById("account-name");
-if (accountName) {
-  const accountMessage = document.getElementById("account-message");
-  if (!isFirebaseConfigured) {
-    accountMessage.textContent = "Firebase is not configured. Follow the setup instructions in README.md.";
-    document.getElementById("account-orders").textContent = "Order history is available after Firebase setup.";
-  } else {
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        if (!window.__wellexsaLogoutInProgress) {
-          window.location.replace("signin.html?return=account.html");
-        }
-        return;
-      }
-      try {
-        const profile = await getDoc(doc(db, "users", user.uid));
-        const data = profile.exists() ? profile.data() : {};
-        const name = data.name || user.displayName || "there";
-        accountName.textContent = name.split(" ")[0];
-        document.getElementById("profile-name").textContent = data.name || user.displayName || "—";
-        document.getElementById("profile-email").textContent = data.email || user.email || "—";
-        document.getElementById("profile-mobile").textContent = data.mobile || user.phoneNumber || "—";
-        const orderTarget = document.getElementById("account-orders");
-        if (orderTarget) {
-          const userOrders = query(collection(db, "orders"), where("userId", "==", user.uid));
-          onSnapshot(userOrders, (snapshot) => {
-            orderTarget.replaceChildren();
-            if (snapshot.empty) {
-              const empty = document.createElement("p");
-              empty.className = "details-error";
-              empty.textContent = "Your order history will appear here after you complete checkout.";
-              orderTarget.append(empty);
-              return;
-            }
-            const sortedOrders = snapshot.docs.slice().sort((a, b) =>
-              (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0)
-            );
-            sortedOrders.forEach((orderDocument) => {
-              const order = orderDocument.data();
-              const card = document.createElement("article");
-              card.className = "order-card";
-              const title = document.createElement("strong");
-              title.textContent = `Order ${orderDocument.id}`;
-              const items = document.createElement("p");
-              items.textContent = (order.items || []).map((item) => {
-                const selectedOption = item.batteryOption
-                  ? ` (${item.batteryOption.batteryType} · ${item.batteryOption.range})`
-                  : "";
-                return `${item.name}${selectedOption} × ${item.quantity}`;
-              }).join(", ");
-              const amount = document.createElement("p");
-              amount.textContent = `Total: ₹${Number(order.totalAmount || 0).toLocaleString("en-IN")}`;
-              const payment = document.createElement("p");
-              payment.textContent = `Payment: ${order.paymentStatus === "captured" ? "Payment Successful" : order.paymentStatus || "Pending"}`;
-              const fulfillment = document.createElement("p");
-              fulfillment.textContent = `Order status: ${order.orderStatus || "Pending"}`;
-              const time = document.createElement("p");
-              time.textContent = order.createdAt?.toDate?.().toLocaleString("en-IN") || "";
-              card.append(title, items, amount, payment, fulfillment, time);
-              orderTarget.append(card);
-            });
-          }, (error) => {
-            orderTarget.textContent = "Your order history could not be loaded.";
-            console.error("Could not load customer orders", error);
-          });
-        }
-      } catch (error) {
-        accountMessage.textContent = "Your account is signed in, but your profile could not be loaded. Please refresh or contact the showroom.";
-        console.error("Could not load customer profile", error);
-      }
-
-      if (isFirebaseConfigured) {
-        const cartCount = document.querySelector(".cart-count");
-        if (cartCount) {
-          try {
-            const cart = JSON.parse(localStorage.getItem("wellexsa-cart-v1") || "[]");
-            cartCount.textContent = String(Array.isArray(cart) ? cart.reduce((total, item) => total + (Number(item.quantity) || 0), 0) : 0);
-          } catch (error) {
-            console.warn("Could not read cart badge", error);
-          }
-        }
-      }
-    });
-  }
-}
 

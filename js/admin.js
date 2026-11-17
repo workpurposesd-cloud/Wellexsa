@@ -28,6 +28,10 @@ let bikeRecords = new Map();
 let slideRecords = new Map();
 let orderRecords = new Map();
 let activeAdmin = false;
+let customerPage = 1;
+let customerTotalPages = 1;
+let customerRequestId = 0;
+let customerSearchTimer = null;
 const orderStatuses = ["pending", "processing", "ready_for_delivery", "delivered", "cancelled", "refunded"];
 const orderStatusLabels = {
   pending: "Pending",
@@ -56,7 +60,17 @@ function setAdminActionsEnabled(enabled) {
   demoModelSelect.disabled = !enabled;
 }
 
+function setCustomerControlsEnabled(enabled) {
+  for (const id of [
+    "customer-refresh", "customer-search", "customer-date-from", "customer-date-to",
+    "customer-status-filter", "customer-page-size"
+  ]) {
+    document.getElementById(id).disabled = !enabled;
+  }
+}
+
 setAdminActionsEnabled(false);
+setCustomerControlsEnabled(false);
 demoScooters.forEach((bike) => {
   const option = document.createElement("option");
   option.value = bike.id;
@@ -336,8 +350,194 @@ function renderOrders() {
   document.getElementById("stat-pending").textContent = String(allOrders.filter((order) => order.paymentStatus === "pending").length);
   renderOrderList(filtered, document.getElementById("admin-orders"), true);
   renderOrderList(allOrders, document.getElementById("payment-records"), false);
-  renderCustomers(allOrders);
 }
+
+function formatCustomerDateTime(value, missingValue) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp)
+    ? new Date(timestamp).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+    : missingValue;
+}
+
+function renderRecentCustomerLogins(customers) {
+  const target = document.getElementById("recent-customer-logins");
+  target.replaceChildren();
+  if (!customers.length) {
+    const empty = document.createElement("p");
+    empty.className = "customer-activity-empty";
+    empty.textContent = "No customer sign-ins have been recorded yet.";
+    target.append(empty);
+    return;
+  }
+  const list = document.createElement("ul");
+  list.className = "customer-recent-login-list";
+  customers.forEach((customer) => {
+    const item = document.createElement("li");
+    const identity = document.createElement("strong");
+    identity.textContent = customer.name || customer.email || customer.uid;
+    const date = document.createElement("time");
+    date.dateTime = customer.lastLoginAt;
+    date.textContent = formatCustomerDateTime(customer.lastLoginAt, "Unknown time");
+    item.append(identity, date);
+    list.append(item);
+  });
+  target.append(list);
+}
+
+function renderCustomerTable(customers, result) {
+  const target = document.getElementById("customer-table-body");
+  target.replaceChildren();
+  if (!customers.length) {
+    const row = document.createElement("tr");
+    const empty = document.createElement("td");
+    empty.colSpan = 7;
+    empty.textContent = "No customers match your filters.";
+    row.append(empty);
+    target.append(row);
+  } else {
+    const recentThreshold = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    customers.forEach((customer) => {
+      const row = document.createElement("tr");
+      const registeredTimestamp = Date.parse(customer.registeredAt);
+      const isNew = Number.isFinite(registeredTimestamp) && registeredTimestamp >= recentThreshold;
+      if (isNew) row.classList.add("is-new");
+
+      const nameCell = document.createElement("td");
+      const name = document.createElement("strong");
+      name.textContent = customer.name || "Not added";
+      nameCell.append(name);
+      if (isNew) {
+        const badge = document.createElement("span");
+        badge.className = "customer-new-badge";
+        badge.textContent = "New";
+        nameCell.append(badge);
+      }
+
+      const emailCell = document.createElement("td");
+      if (customer.email) {
+        const email = document.createElement("a");
+        email.href = `mailto:${customer.email}`;
+        email.textContent = customer.email;
+        email.setAttribute("aria-label", `Email ${customer.email}`);
+        emailCell.append(email);
+      } else {
+        emailCell.textContent = "Not added";
+      }
+
+      const mobileCell = document.createElement("td");
+      if (customer.mobile) {
+        const phone = document.createElement("a");
+        phone.href = `tel:${customer.mobile.replace(/[^\d+]/g, "")}`;
+        phone.textContent = customer.mobile;
+        phone.setAttribute("aria-label", `Call ${customer.mobile}`);
+        mobileCell.append(phone);
+      } else {
+        mobileCell.textContent = "Not added";
+      }
+
+      const registeredCell = document.createElement("td");
+      registeredCell.textContent = formatCustomerDateTime(customer.registeredAt, "Unavailable");
+      const lastLoginCell = document.createElement("td");
+      lastLoginCell.textContent = formatCustomerDateTime(customer.lastLoginAt, "Never signed in");
+
+      const statusCell = document.createElement("td");
+      const status = document.createElement("span");
+      status.className = `customer-status-pill ${customer.status === "disabled" ? "disabled" : "active"}`;
+      status.textContent = customer.status === "disabled" ? "Disabled" : "Active";
+      statusCell.append(status);
+
+      const uidCell = document.createElement("td");
+      uidCell.className = "customer-uid";
+      uidCell.textContent = customer.uid;
+      uidCell.title = customer.uid;
+
+      row.append(nameCell, emailCell, mobileCell, registeredCell, lastLoginCell, statusCell, uidCell);
+      target.append(row);
+    });
+  }
+
+  const start = result.filteredCount ? (result.page - 1) * result.pageSize + 1 : 0;
+  const end = Math.min(result.page * result.pageSize, result.filteredCount);
+  document.getElementById("customer-pagination-status").textContent =
+    `Showing ${start}-${end} of ${result.filteredCount} customers`;
+  customerPage = result.page;
+  customerTotalPages = result.totalPages;
+  document.getElementById("customer-previous-page").disabled = customerPage <= 1;
+  document.getElementById("customer-next-page").disabled = customerPage >= customerTotalPages;
+}
+
+async function loadCustomers(page = customerPage, forceRefresh = false) {
+  if (!activeAdmin) return;
+  const requestId = ++customerRequestId;
+  const refreshButton = document.getElementById("customer-refresh");
+  const target = document.getElementById("customer-table-body");
+  const loadingRow = document.createElement("tr");
+  const loadingCell = document.createElement("td");
+  loadingCell.colSpan = 7;
+  loadingCell.textContent = "Loading customer records…";
+  loadingRow.append(loadingCell);
+  target.replaceChildren(loadingRow);
+  document.getElementById("customer-dashboard-message").textContent = "";
+  refreshButton.disabled = true;
+
+  try {
+    const getCustomers = httpsCallable(getFunctions(), "listAdminCustomers");
+    const response = await getCustomers({
+      page,
+      pageSize: Number(document.getElementById("customer-page-size").value),
+      search: document.getElementById("customer-search").value.trim(),
+      dateFrom: document.getElementById("customer-date-from").value,
+      dateTo: document.getElementById("customer-date-to").value,
+      status: document.getElementById("customer-status-filter").value,
+      refresh: forceRefresh
+    });
+    if (requestId !== customerRequestId) return;
+
+    const result = response.data;
+    document.getElementById("customer-total").textContent = String(result.totalCustomers);
+    document.getElementById("customer-new-registrations").textContent = String(result.newRegistrations);
+    renderRecentCustomerLogins(result.recentLogins);
+    renderCustomerTable(result.customers, result);
+  } catch (error) {
+    if (requestId !== customerRequestId) return;
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 7;
+    cell.textContent = "Customer records could not be loaded.";
+    row.append(cell);
+    target.replaceChildren(row);
+    document.getElementById("recent-customer-logins").textContent = "Login activity could not be loaded.";
+    document.getElementById("customer-dashboard-message").textContent =
+      error?.code === "functions/permission-denied"
+        ? "Verified administrator access is required to view customer records."
+        : "Customer records could not be loaded. Check your connection and try again.";
+    console.error("Could not load admin customer records", {
+      code: error?.code || "unknown",
+      message: typeof error?.message === "string" ? error.message : "No Cloud Function error message provided"
+    });
+  } finally {
+    if (requestId === customerRequestId && activeAdmin) refreshButton.disabled = false;
+  }
+}
+
+function applyCustomerFilters() {
+  customerPage = 1;
+  window.clearTimeout(customerSearchTimer);
+  customerSearchTimer = window.setTimeout(() => loadCustomers(1), 250);
+}
+
+document.getElementById("customer-search").addEventListener("input", applyCustomerFilters);
+for (const id of ["customer-date-from", "customer-date-to", "customer-status-filter"]) {
+  document.getElementById(id).addEventListener("change", applyCustomerFilters);
+}
+document.getElementById("customer-page-size").addEventListener("change", () => loadCustomers(1));
+document.getElementById("customer-refresh").addEventListener("click", () => loadCustomers(1, true));
+document.getElementById("customer-previous-page").addEventListener("click", () => {
+  if (customerPage > 1) loadCustomers(customerPage - 1);
+});
+document.getElementById("customer-next-page").addEventListener("click", () => {
+  if (customerPage < customerTotalPages) loadCustomers(customerPage + 1);
+});
 
 function renderOrderList(orders, target, withControls) {
   target.replaceChildren();
@@ -434,32 +634,6 @@ function renderOrderList(orders, target, withControls) {
     }
     card.append(head, details, footer);
     target.append(card);
-  });
-}
-
-function renderCustomers(orders) {
-  const target = document.getElementById("customer-list");
-  target.replaceChildren();
-  const customers = new Map();
-  orders.forEach((order) => {
-    if (order.userId && !customers.has(order.userId)) customers.set(order.userId, order);
-  });
-  if (!customers.size) {
-    const empty = document.createElement("p");
-    empty.className = "details-error";
-    empty.textContent = "Customer information will appear when orders are placed.";
-    target.append(empty);
-    return;
-  }
-  customers.forEach((order) => {
-    const row = document.createElement("article");
-    row.className = "customer-row";
-    const name = document.createElement("strong");
-    name.textContent = order.customer?.name || "Customer";
-    const detail = document.createElement("span");
-    detail.textContent = `${order.customer?.email || "—"} · ${order.customer?.phone || "—"}`;
-    row.append(name, detail);
-    target.append(row);
   });
 }
 
@@ -948,7 +1122,7 @@ document.getElementById("admin-nav-logout").addEventListener("click", (event) =>
 
 if (!isFirebaseConfigured) {
   showAccessError("Firebase is not configured. Complete the project setup in README.md before using the admin dashboard.");
-  for (const id of ["admin-orders", "payment-records", "customer-list"]) {
+  for (const id of ["admin-orders", "payment-records"]) {
     const target = document.getElementById(id);
     target.replaceChildren();
     const notice = document.createElement("p");
@@ -956,6 +1130,18 @@ if (!isFirebaseConfigured) {
     notice.textContent = "Connect Firebase to load secure showroom data.";
     target.append(notice);
   }
+  const unavailableCustomerRow = document.createElement("tr");
+  const unavailableCustomerCell = document.createElement("td");
+  unavailableCustomerCell.colSpan = 7;
+  unavailableCustomerCell.textContent = "Connect Firebase to load customer records.";
+  unavailableCustomerRow.append(unavailableCustomerCell);
+  document.getElementById("customer-table-body").replaceChildren(unavailableCustomerRow);
+  document.getElementById("recent-customer-logins").textContent = "Connect Firebase to load login activity.";
+  document.getElementById("customer-dashboard-message").textContent =
+    "Connect Firebase before viewing customer information.";
+  document.getElementById("customer-total").textContent = "—";
+  document.getElementById("customer-new-registrations").textContent = "—";
+  document.getElementById("customer-pagination-status").textContent = "Customer data is unavailable.";
   slideList.replaceChildren();
   const slideNotice = document.createElement("p");
   slideNotice.className = "details-error";
@@ -984,6 +1170,8 @@ if (!isFirebaseConfigured) {
       }
       activeAdmin = true;
       setAdminActionsEnabled(true);
+      setCustomerControlsEnabled(true);
+      loadCustomers(1);
       onSnapshot(collection(db, "bikes"), (snapshot) => {
         bikeRecords = new Map(snapshot.docs.map((item) => [item.id, { id: item.id, ...item.data() }]));
         renderBikeRows();
