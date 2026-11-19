@@ -883,9 +883,9 @@ body.auth-page { background: var(--color-white); }
   .auth-layout-centered .auth-form-wrap { max-width: 540px; padding: 38px 40px; }
 }
 @media (max-width: 700px) {
-  .auth-header { height: 70px; padding-inline: 18px; }
+  .auth-header { height: 62px; padding-inline: 18px; }
   .auth-layout.auth-layout-centered {
-    min-height: calc(100svh - 70px);
+    min-height: calc(100svh - 62px);
     padding: 26px 18px 44px;
     align-items: flex-start;
   }

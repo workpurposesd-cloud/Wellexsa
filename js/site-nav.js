@@ -13,12 +13,20 @@ document.querySelectorAll(".cart-count").forEach((counter) => {
   counter.textContent = String(cartCount);
 });
 
+function closeProfileMenu() {
+  const profileButton = header?.querySelector(".nav-profile-button");
+  const profileMenu = header?.querySelector(".nav-profile-dropdown");
+  if (profileMenu) profileMenu.hidden = true;
+  profileButton?.setAttribute("aria-expanded", "false");
+}
+
 if (menuButton && nav) {
   menuButton.addEventListener("click", () => {
     const expanded = menuButton.getAttribute("aria-expanded") === "true";
     menuButton.setAttribute("aria-expanded", String(!expanded));
     menuButton.setAttribute("aria-label", expanded ? "Open navigation" : "Close navigation");
     nav.classList.toggle("is-open", !expanded);
+    if (expanded) closeProfileMenu();
   });
 
   nav.addEventListener("click", (event) => {
@@ -27,6 +35,7 @@ if (menuButton && nav) {
     nav.classList.remove("is-open");
     menuButton.setAttribute("aria-expanded", "false");
     menuButton.setAttribute("aria-label", "Open navigation");
+    closeProfileMenu();
   });
 }
 
@@ -112,6 +121,14 @@ if (header && !header.querySelector(".nav-profile")) {
   profileRegion.append(profileButton, profileMenu);
   header.append(profileRegion);
 
+  function updateAuthLinkVisibility() {
+    const authState = profileRegion.dataset.authState;
+    const signedIn = authState === "signed-in";
+    const authReady = authState !== "loading";
+    signinLink.hidden = !authReady || signedIn || mobileNavigation.matches;
+    signupLink.hidden = !authReady || signedIn;
+  }
+
   function setProfileMenuOpen(open) {
     profileMenu.hidden = !open;
     profileButton.setAttribute("aria-expanded", String(open));
@@ -120,8 +137,16 @@ if (header && !header.querySelector(".nav-profile")) {
 
   function syncHeaderLayout() {
     if (!header || !nav || !cartLink) return;
-    if (mobileNavigation.matches) nav.append(cartLink, profileRegion);
-    else header.append(cartLink, profileRegion);
+    if (mobileNavigation.matches) {
+      nav.append(cartLink, profileRegion, signupLink);
+      signupLink.classList.add("mobile-account-link");
+    } else {
+      profileMenu.insertBefore(signinLink, identity);
+      profileMenu.insertBefore(signupLink, identity);
+      signupLink.classList.remove("mobile-account-link");
+      header.append(cartLink, profileRegion);
+    }
+    updateAuthLinkVisibility();
     nav.classList.remove("is-open");
     if (menuButton) {
       menuButton.setAttribute("aria-expanded", "false");
@@ -132,18 +157,12 @@ if (header && !header.querySelector(".nav-profile")) {
 
   syncHeaderLayout();
   mobileNavigation.addEventListener("change", syncHeaderLayout);
-  menuButton?.addEventListener("click", () => {
-    if (mobileNavigation.matches) {
-      setProfileMenuOpen(menuButton.getAttribute("aria-expanded") === "true");
-    }
-  });
 
   function getProfileButtonLabel() {
     if (profileRegion.dataset.authState === "loading") return "Checking account status";
     if (profileRegion.dataset.authState === "unavailable") return "Account status unavailable";
-    return profileRegion.dataset.authState === "signed-in"
-      ? "My Account, open account menu"
-      : "Sign In, open account menu";
+    if (profileRegion.dataset.authState === "signed-in") return "My Account, open account menu";
+    return mobileNavigation.matches ? "Sign In" : "Sign In, open account menu";
   }
 
   function renderAuthState(user) {
@@ -153,14 +172,13 @@ if (header && !header.querySelector(".nav-profile")) {
     profileLabel.textContent = signedIn ? "My Account" : "Sign In";
     profileButton.setAttribute("aria-label", getProfileButtonLabel());
     profileStatus.hidden = !signedIn;
-    signinLink.hidden = signedIn;
-    signupLink.hidden = signedIn;
+    updateAuthLinkVisibility();
     identity.hidden = !signedIn;
     identity.textContent = user?.displayName || user?.email || "My account";
     profileLink.hidden = !signedIn;
     ordersLink.hidden = !signedIn;
     logoutButton.hidden = !signedIn;
-    setProfileMenuOpen(mobileNavigation.matches && Boolean(nav?.classList.contains("is-open")));
+    setProfileMenuOpen(false);
   }
 
   function renderAuthUnavailable() {
@@ -169,16 +187,19 @@ if (header && !header.querySelector(".nav-profile")) {
     profileLabel.textContent = "Account";
     profileButton.setAttribute("aria-label", getProfileButtonLabel());
     profileStatus.hidden = true;
-    signinLink.hidden = false;
-    signupLink.hidden = false;
+    updateAuthLinkVisibility();
     identity.hidden = true;
     profileLink.hidden = true;
     ordersLink.hidden = true;
     logoutButton.hidden = true;
-    setProfileMenuOpen(mobileNavigation.matches && Boolean(nav?.classList.contains("is-open")));
+    setProfileMenuOpen(false);
   }
 
   profileButton.addEventListener("click", () => {
+    if (mobileNavigation.matches && profileRegion.dataset.authState !== "signed-in") {
+      window.location.assign(signinLink.href);
+      return;
+    }
     setProfileMenuOpen(profileMenu.hidden);
   });
 

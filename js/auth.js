@@ -65,6 +65,34 @@ function validMobileNumber(value) {
   return /^\+?[0-9 ()-]{10,18}$/.test(value) && digits.length >= 10 && digits.length <= 15;
 }
 
+const SIGNUP_OPERATION_TIMEOUT_MS = 20000;
+
+function withSignupTimeout(operation, operationName) {
+  let timeoutId;
+  const timeout = new Promise((resolve, reject) => {
+    timeoutId = window.setTimeout(() => {
+      const error = new Error(`${operationName} timed out`);
+      error.code = "signup/timeout";
+      reject(error);
+    }, SIGNUP_OPERATION_TIMEOUT_MS);
+  });
+  return Promise.race([operation, timeout]).finally(() => window.clearTimeout(timeoutId));
+}
+
+function profileSaveErrorMessage(error) {
+  const message = "Your account was created, but its profile could not be saved.";
+  if (error?.code === "permission-denied") {
+    return `${message} Firestore denied the profile write. Do not sign up again; continue to My Account after access is restored.`;
+  }
+  if (error?.code === "unavailable" || error?.code === "network-request-failed") {
+    return `${message} Firebase is temporarily unavailable. Do not sign up again; check your connection and continue to My Account to retry.`;
+  }
+  if (error?.code === "signup/timeout") {
+    return `${message} The save was not confirmed within 20 seconds and may still complete. Do not sign up again; continue to My Account to check your profile.`;
+  }
+  return `${message} Do not sign up again; continue to My Account to complete your profile.`;
+}
+
 function customerDestination() {
   const requestedDestination = new URLSearchParams(window.location.search).get("return");
   return ["account.html", "checkout.html"].includes(requestedDestination)
@@ -90,8 +118,12 @@ document.querySelectorAll(".password-toggle").forEach((button) => {
 
 const signupForm = document.getElementById("signup-form");
 if (signupForm) {
+  const signupProfileRecovery = document.getElementById("signup-profile-recovery");
+  let signupInProgress = false;
+
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (signupInProgress) return;
     if (!signupForm.reportValidity()) return;
     if (!isFirebaseConfigured || !auth || !db) {
       setMessage("Firebase could not be initialized. Check the Web App configuration and setup instructions in README.md.", false);
@@ -118,42 +150,58 @@ if (signupForm) {
       return;
     }
     const submit = signupForm.querySelector('button[type="submit"]');
+    const idleButtonMarkup = submit.innerHTML;
+    signupInProgress = true;
     submit.disabled = true;
     submit.textContent = "Creating account…";
+    submit.setAttribute("aria-busy", "true");
     setMessage("");
-    let user;
+    signupProfileRecovery.hidden = true;
+    let user = null;
+    let accountCreated = false;
+
     try {
-      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      const credential = await withSignupTimeout(
+        createUserWithEmailAndPassword(auth, email, password),
+        "Account creation"
+      );
       user = credential.user;
-    } catch (error) {
-      setMessage(friendlyError(error));
-      logAuthFailure("Customer signup", error);
-      submit.disabled = false;
-      submit.innerHTML = 'Create account <span aria-hidden="true">→</span>';
-      return;
-    }
+      accountCreated = true;
+      submit.textContent = "Saving profile…";
 
-    const profileDraft = { name, email: user.email || email, mobile };
-    try {
-      await updateProfile(user, { displayName: name });
-    } catch (error) {
-      logAuthFailure("Customer profile name update", error);
-    }
-    try {
-      await setDoc(doc(db, "users", user.uid), {
+      try {
+        await withSignupTimeout(updateProfile(user, { displayName: name }), "Auth profile update");
+      } catch (error) {
+        logAuthFailure("Customer profile name update", error);
+      }
+
+      await withSignupTimeout(setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
-        ...profileDraft,
+        name,
+        email: user.email || email,
+        mobile,
         createdAt: serverTimestamp()
-      });
-    } catch (error) {
-      logAuthFailure("Customer profile save", error);
-      setMessage("Your account was created, but your profile details could not be saved. Complete them in My Account.", false);
-      window.location.assign("account.html?profile=setup");
-      return;
-    }
+      }), "Firestore profile save");
 
-    setMessage("Your account has been created successfully!", true);
-    window.location.assign("index.html?notice=signup-success");
+      setMessage("Your account has been created successfully!", true);
+      window.location.assign("index.html?notice=signup-success");
+    } catch (error) {
+      if (accountCreated) {
+        setMessage(profileSaveErrorMessage(error), false);
+        signupProfileRecovery.hidden = false;
+        logAuthFailure("Customer profile save", error);
+      } else {
+        setMessage(error?.code === "signup/timeout"
+          ? "We couldn't confirm account creation within 20 seconds. Do not submit again yet; try signing in with the email and password you entered."
+          : friendlyError(error), false);
+        logAuthFailure("Customer signup", error);
+      }
+    } finally {
+      signupInProgress = false;
+      submit.disabled = false;
+      submit.removeAttribute("aria-busy");
+      submit.innerHTML = idleButtonMarkup;
+    }
   });
 }
 
