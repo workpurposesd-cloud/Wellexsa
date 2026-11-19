@@ -3,8 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "set-admin": "node scripts/set-admin-claim.mjs",
-    "provision-admin": "node scripts/provision-admin.mjs"
+    "lint:crm": "node --check js/crm-config.js && node --check js/crm-login.js && node --check js/crm-dashboard.js && node --check scripts/provision-crm-owner.mjs && node --check scripts/migrate-crm-customers.mjs && npm --prefix functions run lint"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0"

@@ -1,0 +1,14 @@
+/functions /index.html 404!
+/functions/* /index.html 404!
+/scripts /index.html 404!
+/scripts/* /index.html 404!
+/firebase.json /index.html 404!
+/firestore.rules /index.html 404!
+/firestore.indexes.json /index.html 404!
+/storage.rules /index.html 404!
+/package.json /index.html 404!
+/package-lock.json /index.html 404!
+/README.md /index.html 404!
+/admin-login.html /index.html 404!
+/admin-dashboard.html /index.html 404!
+/admin-change-password.html /index.html 404!

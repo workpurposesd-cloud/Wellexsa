@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Staff CRM — WELLEXSA MOTORS</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/crm.css">
+</head>
+<body class="crm-page" data-crm-role="staff">
+  <header class="crm-header">
+    <a class="crm-brand" href="../index.html"><img src="../assets/images/wellexsa-logo.png" alt="WELLEXSA Motors"></a>
+    <div class="crm-header-copy"><span>PRIVATE SHOWROOM CRM</span><strong>Staff workspace</strong></div>
+    <button class="crm-button crm-button-quiet" id="crm-logout" type="button">Sign out</button>
+  </header>
+  <nav class="crm-nav" aria-label="CRM sections">
+    <button data-tab="overview" class="is-active">Overview</button>
+    <button data-tab="customers">Customers</button>
+    <button data-tab="leads">Needs review</button>
+    <button data-tab="purchased">Purchased</button>
+    <button data-tab="not-interested">Not interested</button>
+    <button data-tab="follow-ups">Follow-ups</button>
+    <button data-tab="purchases">Offline sales</button>
+    <a href="../index.html">Public showroom</a>
+  </nav>
+  <main class="crm-main">
+    <p class="crm-page-message" id="crm-page-message" role="status"></p>
+    <section class="crm-panel is-active" data-panel="overview">
+      <div class="crm-page-heading"><div><p class="crm-eyebrow">DAILY SHOWROOM WORK</p><h1>Welcome, <span id="crm-user-name">Staff</span></h1><p class="crm-muted">Your customer follow-ups and showroom leads.</p></div></div>
+      <div class="crm-stats" id="crm-stats"></div>
+      <section class="crm-card"><div class="crm-card-heading"><div><p class="crm-eyebrow">TODAY & OVERDUE</p><h2>Follow-up priorities</h2></div><button class="crm-text-button" data-open-tab="follow-ups">View reminders</button></div><div id="crm-priority-list" class="crm-compact-list"></div></section>
+    </section>
+    <section class="crm-panel" data-panel="customers">
+      <div class="crm-page-heading"><div><p class="crm-eyebrow">CUSTOMER DIRECTORY</p><h1>Customers</h1><p class="crm-muted">Search by name or phone. Phone numbers are normalized and unique.</p></div><button class="crm-button crm-button-primary" id="crm-add-customer">Add customer</button></div>
+      <div class="crm-toolbar"><input id="crm-search" type="search" placeholder="Search name or phone" aria-label="Search customers"><select id="crm-status-filter" aria-label="Filter by status"><option value="">All statuses</option><option value="new">New lead</option><option value="active">Active lead</option><option value="purchased">Purchased</option><option value="not_interested">Not interested</option></select><select id="crm-bike-filter" aria-label="Filter by interested bike"><option value="">All bike interests</option></select><input id="crm-follow-up-filter" type="date" aria-label="Filter by follow-up date"><button class="crm-button crm-button-quiet" id="crm-refresh">Refresh</button></div>
+      <div class="crm-table-wrap"><table class="crm-table"><thead><tr><th>Customer</th><th>Phone</th><th>Status</th><th>Interested bike</th><th>Assigned staff</th><th>Next follow-up</th><th>Actions</th></tr></thead><tbody id="crm-customer-rows"></tbody></table></div>
+      <p class="crm-empty" id="crm-customer-empty" hidden>No customers match these filters.</p>
+    </section>
+    <section class="crm-panel" data-panel="leads">
+      <div class="crm-page-heading"><div><p class="crm-eyebrow">REGISTRATION MATCHES</p><h1>Needs review</h1><p class="crm-muted">Unverified website phone matches are held here; customer records are never silently merged.</p></div></div>
+      <div class="crm-table-wrap"><table class="crm-table"><thead><tr><th>Registration</th><th>Phone</th><th>Email</th><th>Reason</th><th>Match to customer</th><th>Action</th></tr></thead><tbody id="crm-intake-rows"></tbody></table></div>
+      <p class="crm-empty" id="crm-intake-empty" hidden>No website registrations need matching.</p>
+    </section>
+    <section class="crm-panel" data-panel="purchased">
+      <div class="crm-page-heading"><div><p class="crm-eyebrow">PURCHASED CUSTOMERS</p><h1>Purchased</h1><p class="crm-muted">Customer history remains available after purchase.</p></div></div>
+      <div class="crm-table-wrap"><table class="crm-table"><thead><tr><th>Customer</th><th>Phone</th><th>Purchase date</th><th>Bike model</th><th>Marked by</th><th>Actions</th></tr></thead><tbody id="crm-purchased-rows"></tbody></table></div>
+    </section>
+    <section class="crm-panel" data-panel="not-interested">
+      <div class="crm-page-heading"><div><p class="crm-eyebrow">PRESERVED LEADS</p><h1>Not interested</h1><p class="crm-muted">These records and contact history are retained and can be reactivated.</p></div></div>
+      <div class="crm-table-wrap"><table class="crm-table"><thead><tr><th>Customer</th><th>Phone</th><th>Interested bike</th><th>Assigned staff</th><th>Last contact</th><th>Actions</th></tr></thead><tbody id="crm-not-interested-rows"></tbody></table></div>
+    </section>
+    <section class="crm-panel" data-panel="follow-ups">
+      <div class="crm-page-heading"><div><p class="crm-eyebrow">DAILY WORK</p><h1>Follow-ups</h1><p class="crm-muted">Today, overdue and upcoming customer reminders.</p></div></div>
+      <div id="crm-follow-up-groups" class="crm-follow-up-groups"></div>
+      <section class="crm-follow-group"><h2>Completed follow-ups</h2><div id="crm-completed-followups" class="crm-compact-list"></div></section>
+    </section>
+    <section class="crm-panel" data-panel="purchases">
+      <div class="crm-page-heading"><div><p class="crm-eyebrow">SHOWROOM SALES · OFFLINE</p><h1>Offline purchases</h1><p class="crm-muted">No CRM payment is processed online. Public website checkout remains separate.</p></div></div>
+      <div class="crm-table-wrap"><table class="crm-table"><thead><tr><th>Customer</th><th>Bike</th><th>Purchase date</th><th>Payment</th><th>Delivery</th><th>Staff</th><th>Actions</th></tr></thead><tbody id="crm-purchase-rows"></tbody></table></div>
+    </section>
+  </main>
+  <dialog class="crm-dialog" id="crm-dialog">
+    <form method="dialog" class="crm-dialog-close"><button class="crm-icon-button" aria-label="Close dialog">×</button></form>
+    <div id="crm-dialog-content"></div>
+  </dialog>
+  <div class="crm-toast" id="crm-toast" role="status" aria-live="polite"></div>
+  <script type="module" src="../js/crm-dashboard.js"></script>
+</body>
+</html>

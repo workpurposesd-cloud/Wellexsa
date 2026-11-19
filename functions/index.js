@@ -5,6 +5,22 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import Razorpay from "razorpay";
+export {
+  crmArchiveRecord,
+  crmCreateCustomer,
+  crmCreateStaff,
+  crmGetBikeModels,
+  crmGetSession,
+  crmLogContact,
+  crmListStaff,
+  crmMarkPurchased,
+  crmOnWebsiteProfileCreated,
+  crmResolveLeadIntake,
+  crmResetStaffAccess,
+  crmUpdateCustomer,
+  crmUpdatePurchase,
+  crmUpdateStaff
+} from "./crm.js";
 
 initializeApp();
 const db = getFirestore();
@@ -15,10 +31,19 @@ const keySecret = defineSecret("RAZORPAY_KEY_SECRET");
 const webhookSecret = defineSecret("RAZORPAY_WEBHOOK_SECRET");
 const fulfillmentStatuses = new Set(["pending", "processing", "ready_for_delivery", "delivered", "cancelled", "refunded"]);
 const adminLoginFailureMessage = "Administrator username or password is incorrect.";
+const adminFeaturesEnabled = false;
+
+function hasAdminAccess(request) {
+  const claims = request.auth?.token;
+  return adminFeaturesEnabled && claims?.admin === true && claims.mustChangePassword !== true;
+}
 
 export const adminSignInWithUsername = onCall(
   { region: "us-central1", maxInstances: 10 },
   async (request) => {
+    if (!adminFeaturesEnabled) {
+      throw new HttpsError("unavailable", "Administrator access is temporarily unavailable.");
+    }
     const username = request.data?.username;
     const password = request.data?.password;
     if (typeof username !== "string" || typeof password !== "string" ||
@@ -100,7 +125,7 @@ export const adminSignInWithUsername = onCall(
 );
 
 export const completeAdminPasswordChange = onCall({ region: "us-central1" }, async (request) => {
-  if (!request.auth || request.auth.token.admin !== true ||
+  if (!adminFeaturesEnabled || !request.auth || request.auth.token.admin !== true ||
       request.auth.token.mustChangePassword !== true) {
     throw new HttpsError("permission-denied", "A required administrator password change is not pending.");
   }
@@ -180,8 +205,7 @@ async function loadAdminCustomerDirectory(forceRefresh) {
 export const listAdminCustomers = onCall(
   { region: "us-central1", maxInstances: 5 },
   async (request) => {
-    if (!request.auth || request.auth.token.admin !== true ||
-        request.auth.token.mustChangePassword === true) {
+    if (!hasAdminAccess(request)) {
       throw new HttpsError("permission-denied", "Administrator access is required.");
     }
 
@@ -666,7 +690,7 @@ export const cancelPendingPayment = onCall(async (request) => {
 });
 
 export const updateOrderStatus = onCall(async (request) => {
-  if (!request.auth || request.auth.token.admin !== true) throw new HttpsError("permission-denied", "Administrator access is required.");
+  if (!hasAdminAccess(request)) throw new HttpsError("permission-denied", "Administrator access is required.");
   const { orderId, orderStatus } = request.data || {};
   if (typeof orderId !== "string" || !fulfillmentStatuses.has(orderStatus)) {
     throw new HttpsError("invalid-argument", "Order status is invalid.");
@@ -690,7 +714,7 @@ export const updateOrderStatus = onCall(async (request) => {
 });
 
 export const requestOrderRefund = onCall({ secrets: [keySecret] }, async (request) => {
-  if (!request.auth || request.auth.token.admin !== true) throw new HttpsError("permission-denied", "Administrator access is required.");
+  if (!hasAdminAccess(request)) throw new HttpsError("permission-denied", "Administrator access is required.");
   const { orderId } = request.data || {};
   if (typeof orderId !== "string") throw new HttpsError("invalid-argument", "Order ID is invalid.");
   const orderRef = db.collection("orders").doc(orderId);

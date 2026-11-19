@@ -10,7 +10,34 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return signedIn() && request.auth.token.admin == true;
+      return false;
+    }
+
+    function crmAccessPath() {
+      return /databases/$(database)/documents/crmAccess/$(request.auth.uid);
+    }
+
+    function isActiveCrmUser() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && exists(crmAccessPath())
+        && get(crmAccessPath()).data.active == true
+        && get(crmAccessPath()).data.role in ['owner', 'staff']
+        && get(crmAccessPath()).data.minimumAuthTime is int
+        && request.auth.token.auth_time is int
+        && request.auth.token.auth_time >= get(crmAccessPath()).data.minimumAuthTime;
+    }
+
+    function isCrmOwner() {
+      return isActiveCrmUser() && get(crmAccessPath()).data.role == 'owner';
+    }
+
+    function hasCrmPermission(permission) {
+      return isCrmOwner()
+        || (isActiveCrmUser()
+          && get(crmAccessPath()).data.role == 'staff'
+          && get(crmAccessPath()).data.permissions is list
+          && permission in get(crmAccessPath()).data.permissions);
     }
 
     function validBike(data) {
@@ -101,7 +128,9 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin()
+        || hasCrmPermission('orders:view')
+        || (signedIn() && resource.data.userId == request.auth.uid);
       allow write: if false;
     }
 
@@ -111,6 +140,47 @@ service cloud.firestore {
     }
 
     match /checkoutRequests/{requestId} {
+      allow read, write: if false;
+    }
+
+    match /crmAccess/{uid} {
+      allow read, write: if false;
+    }
+
+    match /crmCustomers/{customerId} {
+      allow get, list: if hasCrmPermission('customers:view');
+      allow create, update, delete: if false;
+
+      match /contactHistory/{eventId} {
+        allow get, list: if hasCrmPermission('customers:view');
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /crmLeadIntakes/{intakeId} {
+      allow get, list: if hasCrmPermission('customers:view') || hasCrmPermission('leads:resolve');
+      allow create, update, delete: if false;
+    }
+
+    match /crmPurchases/{purchaseId} {
+      allow get, list: if hasCrmPermission('purchases:view');
+      allow create, update, delete: if false;
+    }
+
+    match /crmAuditEvents/{eventId} {
+      allow get, list: if isCrmOwner();
+      allow create, update, delete: if false;
+    }
+
+    match /crmPhoneIndex/{phoneHash} {
+      allow read, write: if false;
+    }
+
+    match /crmWebUserIndex/{uid} {
+      allow read, write: if false;
+    }
+
+    match /crmPurchaseRequests/{requestId} {
       allow read, write: if false;
     }
   }
