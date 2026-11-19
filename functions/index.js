@@ -17,6 +17,7 @@ export {
   crmOnWebsiteProfileCreated,
   crmResolveLeadIntake,
   crmResetStaffAccess,
+  crmSubmitBikeEnquiry,
   crmUpdateCustomer,
   crmUpdatePurchase,
   crmUpdateStaff

@@ -1,10 +1,10 @@
 import { db, isFirebaseConfigured } from "./firebase-config.js";
 import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { addToCart, createImageFallback, demoScooters, formatPrice, getBatteryRangeOptions, readCart, writeCart } from "./bikes.js";
+import { createImageFallback, demoScooters, formatPrice } from "./bikes.js";
 import { specificationFields } from "./bikes.js";
+import { openEnquiryForm } from "./enquiry.js";
 
 const container = document.getElementById("bike-details");
-writeCart(readCart());
 const params = new URLSearchParams(window.location.search);
 const bikeId = params.get("id");
 const demoId = params.get("demo");
@@ -101,123 +101,18 @@ function renderBike(bike) {
   descriptionHeading.textContent = "About this ride";
   const actions = document.createElement("div");
   actions.className = "details-cta";
-  const phone = document.createElement("a");
-  phone.className = "button button-dark";
-  phone.href = "tel:9989992230";
-  phone.textContent = "Contact for enquiry";
-  const whatsapp = document.createElement("a");
-  whatsapp.className = "button whatsapp-button";
-  const message = `Hello WELLEXSA MOTORS, I am interested in ${bike.name || "your electric scooter"}.`;
-  whatsapp.href = `https://wa.me/919989992230?text=${encodeURIComponent(message)}`;
-  whatsapp.target = "_blank";
-  whatsapp.rel = "noreferrer";
-  whatsapp.textContent = "Enquire on WhatsApp ↗";
   const stockCount = Number(bike.stockQuantity) || 0;
   const stock = document.createElement("p");
   stock.className = `stock-badge${isDemo ? " demo-badge" : stockCount > 0 ? "" : " out-of-stock"}`;
   stock.textContent = isDemo
     ? "DEMONSTRATION DATA · UNVERIFIED · NOT FOR SALE"
     : stockCount > 0 ? `In stock · ${stockCount} available` : "OUT OF STOCK";
-  const batteryOptions = getBatteryRangeOptions(bike);
-  let selectedBatteryOption = null;
-  let batteryOptionLabel = null;
-  let batteryOptionSelect = null;
-  if (batteryOptions.length) {
-    batteryOptionLabel = document.createElement("label");
-    batteryOptionLabel.className = "details-battery-option";
-    batteryOptionLabel.textContent = "Battery / range option";
-    batteryOptionSelect = document.createElement("select");
-    batteryOptionSelect.required = true;
-    batteryOptionSelect.setAttribute("aria-label", `Battery and range option for ${bike.name || "electric scooter"}`);
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Select an option";
-    placeholder.disabled = true;
-    placeholder.selected = true;
-    batteryOptionSelect.append(placeholder);
-    batteryOptions.forEach((option, index) => {
-      const choice = document.createElement("option");
-      choice.value = String(index);
-      choice.textContent = `${option.batteryType} · ${option.range} · ${option.warranty} warranty`;
-      batteryOptionSelect.append(choice);
-    });
-    const optionPriceNote = document.createElement("small");
-    optionPriceNote.className = "details-option-note";
-    optionPriceNote.textContent = isDemo
-      ? "Demonstration options only; this preview is not for sale."
-      : "The published listing price is used for every displayed option.";
-    batteryOptionLabel.append(batteryOptionSelect, optionPriceNote);
-  }
-  const quantityLabel = document.createElement("label");
-  quantityLabel.className = "details-quantity";
-  quantityLabel.textContent = "Quantity";
-  const quantityInput = document.createElement("input");
-  quantityInput.type = "number";
-  quantityInput.min = "1";
-  quantityInput.max = String(stockCount);
-  quantityInput.step = "1";
-  quantityInput.value = "1";
-  quantityInput.disabled = stockCount <= 0;
-  quantityInput.setAttribute("aria-label", `Quantity for ${bike.name || "electric scooter"}`);
-  quantityLabel.append(quantityInput);
-  const addButton = document.createElement("button");
-  addButton.type = "button";
-  addButton.className = "button button-dark";
-  addButton.disabled = isDemo || stockCount <= 0 || batteryOptions.length > 0;
-  addButton.textContent = isDemo ? "Add to Cart" : stockCount > 0 ? "Add to cart" : "Out of stock";
-  const buyNow = document.createElement("button");
-  buyNow.type = "button";
-  buyNow.className = "button button-outline";
-  buyNow.textContent = "Buy Now";
-  buyNow.disabled = isDemo || stockCount <= 0 || batteryOptions.length > 0;
-  const syncPurchaseButtons = () => {
-    const validQuantity = Number.isInteger(Number(quantityInput.value)) &&
-      Number(quantityInput.value) >= 1 && Number(quantityInput.value) <= stockCount;
-    const needsChoice = batteryOptions.length > 0 && !selectedBatteryOption;
-    addButton.disabled = isDemo || stockCount <= 0 || !validQuantity || needsChoice;
-    buyNow.disabled = isDemo || stockCount <= 0 || !validQuantity || needsChoice;
-  };
-  if (batteryOptionSelect) {
-    batteryOptionSelect.addEventListener("change", () => {
-      selectedBatteryOption = batteryOptions[Number(batteryOptionSelect.value)] || null;
-      batteryOptionSelect.setCustomValidity("");
-      syncPurchaseButtons();
-    });
-  }
-  quantityInput.addEventListener("input", syncPurchaseButtons);
-  addButton.addEventListener("click", () => {
-    const quantity = Number(quantityInput.value);
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > stockCount) {
-      quantityInput.setCustomValidity(`Choose a whole number between 1 and ${stockCount}.`);
-      quantityInput.reportValidity();
-      return;
-    }
-    if (batteryOptions.length && !selectedBatteryOption) {
-      batteryOptionSelect.setCustomValidity("Choose a battery and range option.");
-      batteryOptionSelect.reportValidity();
-      return;
-    }
-    quantityInput.setCustomValidity("");
-    addButton.textContent = addToCart(bike, quantity, selectedBatteryOption) ? "Added to cart" : "Stock limit reached";
-  });
-  buyNow.addEventListener("click", () => {
-    const quantity = Number(quantityInput.value);
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > stockCount) {
-      quantityInput.setCustomValidity(`Choose a whole number between 1 and ${stockCount}.`);
-      quantityInput.reportValidity();
-      return;
-    }
-    if (batteryOptions.length && !selectedBatteryOption) {
-      batteryOptionSelect.setCustomValidity("Choose a battery and range option.");
-      batteryOptionSelect.reportValidity();
-      return;
-    }
-    quantityInput.setCustomValidity("");
-    if (addToCart(bike, quantity, selectedBatteryOption)) window.location.assign("checkout.html");
-    else addButton.textContent = "Stock limit reached";
-  });
-  if (batteryOptionLabel) actions.append(batteryOptionLabel);
-  actions.append(quantityLabel, addButton, buyNow, phone, whatsapp);
+  const enquireButton = document.createElement("button");
+  enquireButton.type = "button";
+  enquireButton.className = "button button-dark";
+  enquireButton.textContent = "Enquire Now";
+  enquireButton.addEventListener("click", () => openEnquiryForm(bike));
+  actions.append(enquireButton);
   copy.append(eyebrow, title, model, price, stock);
   if (isDemo) copy.append(demoNotice);
   if (description.textContent) copy.append(descriptionHeading, description);

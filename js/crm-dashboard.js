@@ -15,6 +15,7 @@ const state = {
   role: "",
   session: null,
   customers: [],
+  enquiries: [],
   purchases: [],
   intakes: [],
   completedFollowUps: [],
@@ -571,6 +572,26 @@ function renderCustomers() {
   if (empty) empty.hidden = customers.length > 0;
 }
 
+function renderEnquiries() {
+  const rows = document.getElementById("crm-enquiry-rows");
+  if (!rows) return;
+  rows.replaceChildren();
+  state.enquiries.forEach((enquiry) => {
+    const row = make("tr");
+    appendCell(row, enquiry.customerName);
+    const phone = make("a", "", enquiry.mobile);
+    phone.href = `tel:${enquiry.mobile}`;
+    appendCell(row, phone);
+    appendCell(row, enquiry.bikeModel);
+    appendCell(row, dateText(enquiry.createdAt, true));
+    appendCell(row, enquiry.customerType === "existing" ? "Existing customer" : "New customer");
+    appendCell(row, make("span", `crm-pill ${enquiry.status}`, statusLabel(enquiry.status)));
+    rows.append(row);
+  });
+  const empty = document.getElementById("crm-enquiry-empty");
+  if (empty) empty.hidden = state.enquiries.length > 0;
+}
+
 function renderPurchased() {
   const rows = document.getElementById("crm-purchased-rows");
   if (!rows) return;
@@ -895,6 +916,7 @@ function renderStats() {
 function renderAll() {
   renderStats();
   renderCustomers();
+  renderEnquiries();
   renderPurchased();
   renderPurchases();
   renderNotInterested();
@@ -919,9 +941,12 @@ function renderAll() {
 async function loadData() {
   message.textContent = "Loading CRM records…";
   try {
-    const [customers, purchases, intakes, models, staff, completed] = await Promise.all([
+    const [customers, enquiries, purchases, intakes, models, staff, completed] = await Promise.all([
       can("customers:view")
         ? getDocs(query(collection(crmDb, "crmCustomers"), orderBy("updatedAt", "desc")))
+        : Promise.resolve({ docs: [], size: 0 }),
+      can("customers:view")
+        ? getDocs(query(collection(crmDb, "crmEnquiries"), orderBy("createdAt", "desc"), limit(200)))
         : Promise.resolve({ docs: [], size: 0 }),
       can("purchases:view")
         ? getDocs(query(collection(crmDb, "crmPurchases"), orderBy("purchaseDate", "desc")))
@@ -936,6 +961,7 @@ async function loadData() {
         : Promise.resolve({ docs: [] })
     ]);
     state.customers = customers.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
+    state.enquiries = enquiries.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
     state.purchases = purchases.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
     state.intakes = intakes.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
     state.completedFollowUps = completed.docs.map((snapshot) => ({
@@ -1101,6 +1127,7 @@ onAuthStateChanged(crmAuth, async (user) => {
     });
     const requiredByTab = {
       customers: "customers:view",
+      enquiries: "customers:view",
       leads: "customers:view",
       purchased: "customers:view",
       "not-interested": "customers:view",

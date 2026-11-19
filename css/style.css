@@ -123,13 +123,60 @@ h1, h2, h3, p { margin-top: 0; }
 .bike-card-footer a:hover { color: var(--accent); }
 .stock-badge { display: inline-block; margin: 0 0 15px; color: #49704d; font-size: 10px; font-weight: 600; }
 .stock-badge.out-of-stock { color: #a13e37; }
-.bike-card .add-to-cart { width: 100%; min-height: 41px; margin-top: 15px; }
+.bike-card .enquire-now { width: 100%; min-height: 41px; margin-top: 15px; }
 .add-to-cart:disabled { cursor: not-allowed; opacity: .48; transform: none; }
 .stock-badge { display: inline-block; margin: 0 0 15px; color: #49704d; font-size: 10px; font-weight: 600; }
 .stock-badge.out-of-stock { color: #a13e37; }
 .bike-card .add-to-cart { width: 100%; min-height: 41px; margin-top: 15px; }
 .add-to-cart:disabled { cursor: not-allowed; opacity: .48; transform: none; }
 .empty-state { padding: 28px; color: #7a7f78; background: var(--canvas); text-align: center; font-size: 13px; }
+.enquiry-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  border: 1px solid #e8eae6;
+  color: var(--ink);
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(20, 24, 20, .2);
+}
+.enquiry-dialog::backdrop { background: rgba(18, 22, 18, .58); }
+.enquiry-panel { position: relative; padding: 34px; }
+.enquiry-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  color: #62675f;
+  background: transparent;
+  font-size: 26px;
+  cursor: pointer;
+}
+.enquiry-panel h2 { margin: 0 34px 5px 0; font: 600 25px/1.2 var(--display); }
+.enquiry-bike { margin: 0 0 24px; color: #787d76; font-size: 13px; }
+.enquiry-form { display: grid; gap: 17px; }
+.enquiry-form label { display: grid; gap: 7px; color: #525750; font-size: 12px; font-weight: 600; }
+.enquiry-form input {
+  width: 100%;
+  min-height: 45px;
+  padding: 10px 12px;
+  border: 1px solid #dfe2dc;
+  border-radius: 2px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+}
+.enquiry-form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.enquiry-status { min-height: 18px; margin: 0; color: #49704d; font-size: 12px; line-height: 1.5; }
+.enquiry-status.is-error { color: #a13e37; }
+.enquiry-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.enquiry-actions .button { min-height: 44px; }
+.enquiry-actions [hidden], .enquiry-form label[hidden] { display: none; }
+@media (max-width: 480px) {
+  .enquiry-panel { padding: 32px 22px 24px; }
+  .enquiry-panel h2 { font-size: 22px; }
+}
 .visit-banner { position: relative; min-height: 277px; padding: 58px 9%; display: flex; align-items: center; justify-content: space-between; color: #fff; background: #252925; overflow: hidden; }
 .visit-banner > div, .visit-banner .button, .banner-index { position: relative; z-index: 1; }
 .visit-banner .eyebrow { color: #b7bcb4; }

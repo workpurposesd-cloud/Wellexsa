@@ -345,6 +345,97 @@ export const crmCreateCustomer = onCall({ region: "us-central1" }, async (reques
   return result;
 });
 
+export const crmSubmitBikeEnquiry = onCall(
+  { region: "us-central1", maxInstances: 10 },
+  async (request) => {
+    const data = request.data;
+    if (!data || typeof data !== "object" || Array.isArray(data) ||
+        Object.keys(data).some((key) => !["requestId", "name", "mobile", "bikeModel"].includes(key))) {
+      throw new HttpsError("invalid-argument", "Enquiry details are invalid.");
+    }
+    const requestId = data.requestId;
+    if (typeof requestId !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+      throw new HttpsError("invalid-argument", "Enquiry request is invalid.");
+    }
+    const name = text(data.name, "Customer name", 100, true);
+    if (typeof data.mobile !== "string" || !/^[6-9]\d{9}$/.test(data.mobile)) {
+      throw new HttpsError("invalid-argument", "Enter a valid 10-digit Indian mobile number.");
+    }
+    const phone = `+91${data.mobile}`;
+    const bikeModel = text(data.bikeModel, "Bike model", 100, true);
+    const hash = phoneHash(phone);
+    const enquiryRef = db().collection("crmEnquiries").doc(requestId);
+    const indexRef = db().collection("crmPhoneIndex").doc(hash);
+    const newCustomerRef = db().collection("crmCustomers").doc();
+    const assigneeUid = await leastAssignedActiveStaff();
+
+    await db().runTransaction(async (transaction) => {
+      if ((await transaction.get(enquiryRef)).exists) return;
+      const index = await transaction.get(indexRef);
+      let customerRef = newCustomerRef;
+      let customerType = "new";
+      if (index.exists) {
+        if (typeof index.data().customerId !== "string") {
+          throw new HttpsError("internal", "The matching customer record could not be verified.");
+        }
+        customerRef = db().collection("crmCustomers").doc(index.data().customerId);
+        const customer = await transaction.get(customerRef);
+        if (!customer.exists) {
+          throw new HttpsError("internal", "The matching customer record could not be found.");
+        }
+        customerType = "existing";
+      } else {
+        const assignedStaffUid = await assignStaff(transaction, assigneeUid);
+        transaction.create(customerRef, {
+          name,
+          phone,
+          phoneHash: hash,
+          email: "",
+          customerType: "new",
+          source: "website_enquiry",
+          sourceUid: null,
+          status: "new",
+          interestStatus: "Need More Time",
+          callStatus: "",
+          interestedBike: bikeModel,
+          assignedStaffUid,
+          nextFollowUpAt: null,
+          deletedAt: null,
+          isArchived: false,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          normalizedName: searchableName(name)
+        });
+        transaction.create(indexRef, {
+          customerId: customerRef.id,
+          createdAt: FieldValue.serverTimestamp()
+        });
+      }
+
+      transaction.create(enquiryRef, {
+        customerId: customerRef.id,
+        customerName: name,
+        mobile: phone,
+        customerType,
+        bikeModel,
+        status: "new",
+        createdAt: FieldValue.serverTimestamp()
+      });
+      addAudit(
+        transaction,
+        { uid: "system", role: "system" },
+        "website_enquiry_received",
+        "enquiry",
+        requestId,
+        { customerId: customerRef.id, bikeModel }
+      );
+    });
+
+    return { submitted: true };
+  }
+);
+
 export const crmUpdateCustomer = onCall({ region: "us-central1" }, async (request) => {
   const actor = await requireCrmUser(request, "customers:edit");
   const { customerId, changes } = request.data || {};

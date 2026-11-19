@@ -1,11 +1,11 @@
 import { db, isFirebaseConfigured } from "./firebase-config.js";
 import { collection, onSnapshot, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { addToCart, createImageFallback, demoScooters, formatPrice, getBatteryRangeOptions, readCart, writeCart } from "./bikes.js";
+import { createImageFallback, demoScooters, formatPrice, getBatteryRangeOptions } from "./bikes.js";
+import { openEnquiryForm } from "./enquiry.js";
 import "./site-nav.js";
 
 const year = document.getElementById("year");
 if (year) year.textContent = String(new Date().getFullYear());
-writeCart(readCart());
 
 if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
   const revealObserver = new IntersectionObserver((entries, observer) => {
@@ -346,7 +346,7 @@ function renderCatalog(bikes, demoMode = false) {
       : `bike-details.html?id=${encodeURIComponent(bike.id)}`;
     detailLink.innerHTML = 'View Details <span aria-hidden="true">→</span>';
     footer.append(price, detailLink);
-    body.append(top, title, model, description, specs, stock, footer, makeCartButton(bike));
+    body.append(top, title, model, description, specs, stock, footer, makeEnquiryButton(bike));
     card.append(imageArea, body);
     grid.append(card);
   }
@@ -393,37 +393,11 @@ if (!isFirebaseConfigured) {
   });
 }
 
-function makeCartButton(bike) {
+function makeEnquiryButton(bike) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "button button-dark add-to-cart";
-  const available = Number(bike.stockQuantity) || 0;
-  const needsOption = getBatteryRangeOptions(bike).length > 0;
-  button.disabled = bike.demoData === true || available <= 0;
-  button.textContent = bike.demoData === true
-    ? "Add to cart"
-    : available <= 0 ? "Out of stock" : needsOption ? "Select battery / range" : "Add to cart";
-  if (bike.demoData === true) {
-    button.setAttribute("aria-label", `Add to cart unavailable for ${bike.name}; demo data only`);
-    button.title = "Demo listing: add a verified price, photo and stock in the admin dashboard before publishing.";
-  }
-  button.addEventListener("click", () => {
-    if (needsOption) {
-      window.location.assign(`bike-details.html?id=${encodeURIComponent(bike.id)}`);
-      return;
-    }
-    const added = addToCart(bike, 1);
-    if (added) {
-      button.textContent = "Added to cart";
-      window.setTimeout(() => {
-        if (button.isConnected) button.textContent = "Add to cart";
-      }, 1200);
-    } else {
-      button.textContent = "Stock limit reached";
-      window.setTimeout(() => {
-        if (button.isConnected) button.textContent = "Add to cart";
-      }, 1800);
-    }
-  });
+  button.className = "button button-dark enquire-now";
+  button.textContent = "Enquire Now";
+  button.addEventListener("click", () => openEnquiryForm(bike));
   return button;
 }

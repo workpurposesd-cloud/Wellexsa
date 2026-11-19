@@ -17,6 +17,7 @@
   <nav class="crm-nav" aria-label="CRM sections">
     <button data-tab="overview" class="is-active">Overview</button>
     <button data-tab="customers">Customers</button>
+    <button data-tab="enquiries">Enquiries</button>
     <button data-tab="leads">Needs review</button>
     <button data-tab="purchased">Purchased</button>
     <button data-tab="not-interested">Not interested</button>
@@ -36,6 +37,11 @@
       <div class="crm-toolbar"><input id="crm-search" type="search" placeholder="Search name or phone" aria-label="Search customers"><select id="crm-status-filter" aria-label="Filter by status"><option value="">All statuses</option><option value="new">New lead</option><option value="active">Active lead</option><option value="purchased">Purchased</option><option value="not_interested">Not interested</option></select><select id="crm-bike-filter" aria-label="Filter by interested bike"><option value="">All bike interests</option></select><input id="crm-follow-up-filter" type="date" aria-label="Filter by follow-up date"><button class="crm-button crm-button-quiet" id="crm-refresh">Refresh</button></div>
       <div class="crm-table-wrap"><table class="crm-table"><thead><tr><th>Customer</th><th>Phone</th><th>Status</th><th>Interested bike</th><th>Assigned staff</th><th>Next follow-up</th><th>Actions</th></tr></thead><tbody id="crm-customer-rows"></tbody></table></div>
       <p class="crm-empty" id="crm-customer-empty" hidden>No customers match these filters.</p>
+    </section>
+    <section class="crm-panel" data-panel="enquiries">
+      <div class="crm-page-heading"><div><p class="crm-eyebrow">WEBSITE ENQUIRIES</p><h1>Enquiries</h1><p class="crm-muted">New enquiries are linked to existing customers by mobile number when possible.</p></div></div>
+      <div class="crm-table-wrap"><table class="crm-table"><thead><tr><th>Customer</th><th>Mobile</th><th>Bike model</th><th>Enquiry date &amp; time</th><th>Customer match</th><th>Status</th></tr></thead><tbody id="crm-enquiry-rows"></tbody></table></div>
+      <p class="crm-empty" id="crm-enquiry-empty" hidden>No website enquiries have been received.</p>
     </section>
     <section class="crm-panel" data-panel="leads">
       <div class="crm-page-heading"><div><p class="crm-eyebrow">REGISTRATION MATCHES</p><h1>Needs review</h1><p class="crm-muted">Unverified website phone matches are held here; customer records are never silently merged.</p></div></div>

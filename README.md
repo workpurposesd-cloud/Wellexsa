@@ -66,7 +66,9 @@ The admin pages, sign-in, password-change flow, privileged Functions, Firestore/
 
 ## Private Owner/Staff CRM
 
-The CRM is separate from the disabled legacy admin system. It uses dedicated Owner/Staff pages at `crm/owner-login.html` and `crm/staff-login.html`; access is authorized by server-written `crmAccess/{uid}` records, checked by callable Functions and Firestore Rules. Customer-facing pages do not link to the CRM. Customer authentication, public prices, cart, checkout and Razorpay remain separate and unchanged.
+The CRM is separate from the disabled legacy admin system. It uses dedicated Owner/Staff pages at `crm/owner-login.html` and `crm/staff-login.html`; access is authorized by server-written `crmAccess/{uid}` records, checked by callable Functions and Firestore Rules. Customer-facing pages do not link to the CRM. Customer authentication and Razorpay remain separate. The showroom catalogue now uses Enquire Now instead of cart and checkout actions; the existing cart and checkout implementation remains in the repository but is no longer linked from the bike shopping flow.
+
+Website enquiries are submitted through the `crmSubmitBikeEnquiry` callable Function. The server validates the name and Indian mobile number, uses the existing hashed `crmPhoneIndex` in a transaction to link an existing customer or create one customer record, and stores each enquiry separately with a server timestamp and `new` status. Firestore Rules deny browser writes to both CRM collections and allow enquiry reads only to CRM users with `customers:view`; the Owner/Staff Enquiries tab displays the contact, bike, timestamp and new/existing match. The WhatsApp draft is offered only after the server confirms the save and requires the customer to send it manually.
 
 The current source changes are not deployed. Before making the CRM available, review the security configuration and deploy the Functions, Firestore rules, indexes and static hosting files to the intended Firebase project. Never expose the Firebase Admin SDK credentials:
 
@@ -211,10 +213,11 @@ After verifying the Firebase Web App config and deploying Functions, indexes and
 
 ```powershell
 npm run lint:crm
+npm run test:enquiry
 python -m http.server 8000
 ```
 
-`npm run lint:crm` checks JavaScript syntax for the new CRM pages, setup scripts and Functions. This repository does not yet include automated Firebase Emulator Rules/Functions tests; do not treat syntax checks or a local static page load as authorization tests.
+`npm run lint:crm` checks JavaScript syntax for the CRM, enquiry and bike pages, setup scripts and Functions. `npm run test:enquiry` checks WhatsApp draft construction without sending a message or creating CRM data. This repository does not yet include automated Firebase Emulator Rules/Functions tests; do not treat syntax checks or a local static page load as authorization tests.
 
 Open `http://localhost:8000` and test the authentication paths separately:
 

@@ -157,6 +157,11 @@ service cloud.firestore {
       }
     }
 
+    match /crmEnquiries/{enquiryId} {
+      allow get, list: if hasCrmPermission('customers:view');
+      allow create, update, delete: if false;
+    }
+
     match /crmLeadIntakes/{intakeId} {
       allow get, list: if hasCrmPermission('customers:view') || hasCrmPermission('leads:resolve');
       allow create, update, delete: if false;
