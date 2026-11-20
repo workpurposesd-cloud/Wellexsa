@@ -5,7 +5,7 @@ A responsive electric-scooter showroom with customer accounts, live Firestore li
 ## Brand and design assets
 
 - The supplied WELLEXSA emblem and wordmark PNG is used as the logo throughout the website without recreating the artwork. Its white artwork is placed against a charcoal background for legibility.
-- The homepage slider uses eight local fallback slides; enabled, published Firestore slides override them. The eight active demo previews use the original `assets/images/image1.jfif` through `image8.jfif` files, mapped in order to Tunwal Alfa Pro, Tunwal Mini Lithino, Tunwal Sport 63, YO Bykes YO Smart+, YO Bykes YO Smart, YO Bykes YO DX, WELLEXSA Double Light and EoX Electric OKO. The image9.jfif and image10.jfif files are retained but are not used in the active demo catalogue.
+- The homepage slider uses eight local fallback slides; enabled, published Firestore slides override them. The active demo previews use `assets/images/image1.png` for Tunwal Alfa Pro and `assets/images/image2.jfif` through `image8.jfif` for Tunwal Mini Lithino, Tunwal Sport 63, YO Bykes YO Smart+, YO Bykes YO Smart, YO Bykes YO DX, WELLEXSA Double Light and EoX Electric OKO, respectively. The image9.jfif and image10.jfif files are retained but are not used in the active demo catalogue.
 - `privacy.html` and `terms.html` are starter pages, clearly marked for showroom business review. Confirm the final legal, data-retention, cancellation, delivery and warranty terms before launch.
 
 ## What is included

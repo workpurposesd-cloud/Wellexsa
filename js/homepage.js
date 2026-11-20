@@ -25,17 +25,13 @@ if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-mot
 const grid = document.getElementById("bike-grid");
 const demoNotice = document.getElementById("demo-notice");
 const empty = document.getElementById("bike-empty");
-const sliderTrack = document.getElementById("slider-track");
-const sliderViewport = document.getElementById("slider-viewport");
-const sliderPrevious = document.getElementById("slider-previous");
-const sliderNext = document.getElementById("slider-next");
-const sliderIndicators = document.getElementById("slider-indicators");
-const sliderCount = document.getElementById("slider-count");
+const heroImage = document.getElementById("hero-scooter");
+const heroEnquiry = document.getElementById("hero-enquiry");
 const fallbackSlides = [
   {
     title: "Tunwal Alfa Pro",
     description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image1.jfif",
+    imageUrl: "assets/images/image1.png",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
@@ -89,157 +85,26 @@ const fallbackSlides = [
     buttonUrl: "#bikes"
   }
 ];
-let sliderTimer = 0;
-let currentSlideIndex = 0;
-let sliderPaused = false;
-let slides = [];
-
-function safeSlideDestination(destination) {
-  try {
-    const url = new URL(destination || "#contact", window.location.href);
-    if (url.protocol === "https:" ||
-        (url.origin === window.location.origin && ["http:", "file:"].includes(url.protocol))) {
-      return destination || "#contact";
-    }
-  } catch (error) {
-    console.warn("Invalid homepage slide destination; using showroom contact link.", error);
-  }
-  return "#contact";
-}
-
-function updateSlide(index) {
-  if (!slides.length) return;
-  currentSlideIndex = (index + slides.length) % slides.length;
-  sliderTrack.querySelectorAll(".hero-slide").forEach((slide, slideIndex) => {
-    const active = slideIndex === currentSlideIndex;
-    slide.classList.toggle("is-active", active);
-    slide.setAttribute("aria-hidden", String(!active));
-  });
-  sliderIndicators.querySelectorAll("button").forEach((button, buttonIndex) => {
-    button.classList.toggle("is-active", buttonIndex === currentSlideIndex);
-    button.setAttribute("aria-current", buttonIndex === currentSlideIndex ? "true" : "false");
-  });
-  sliderCount.textContent = `${String(currentSlideIndex + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
-}
-
-function stopSliderAutoplay() {
-  window.clearInterval(sliderTimer);
-  sliderTimer = 0;
-}
-
-function startSliderAutoplay() {
-  stopSliderAutoplay();
-  if (slides.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      document.visibilityState !== "visible" || sliderPaused) return;
-  sliderTimer = window.setInterval(() => updateSlide(currentSlideIndex + 1), 5000);
-}
+let heroBike = demoScooters[0];
 
 function renderSlides(records) {
-  stopSliderAutoplay();
-  sliderTrack.replaceChildren();
-  sliderIndicators.replaceChildren();
-  slides = records.length ? records : fallbackSlides;
-
-  slides.forEach((slide, index) => {
-    const article = document.createElement("article");
-    article.className = "hero-slide";
-    article.setAttribute("aria-hidden", "true");
-
-    const copy = document.createElement("div");
-    copy.className = "hero-slide-copy";
-    const eyebrow = document.createElement("p");
-    eyebrow.className = "eyebrow";
-    eyebrow.textContent = "WELLEXSA MOTORS · ELECTRIC COLLECTION";
-    const heading = document.createElement("h1");
-    heading.textContent = slide.title;
-    const description = document.createElement("p");
-    description.className = "hero-slide-description";
-    description.textContent = slide.description || "";
-    const actions = document.createElement("div");
-    actions.className = "hero-actions";
-    const primary = document.createElement("a");
-    primary.className = "button button-dark";
-    primary.href = safeSlideDestination(slide.buttonUrl);
-    primary.textContent = slide.buttonText || "Explore bikes";
-    const enquiry = document.createElement("a");
-    enquiry.className = "text-link";
-    enquiry.href = "#contact";
-    enquiry.textContent = "Enquire now →";
-    actions.append(primary, enquiry);
-    copy.append(eyebrow, heading, description, actions);
-
-    const media = document.createElement("div");
-    media.className = "hero-slide-media";
-    const image = document.createElement("img");
-    image.src = slide.imageUrl;
-    image.alt = slide.title ? `${slide.title} sample scooter photo` : "WELLEXSA electric scooter";
-    image.loading = index === 0 ? "eager" : "lazy";
-    image.addEventListener("error", () => {
-      image.remove();
-      media.classList.add("hero-slide-media-empty");
-      const fallbackText = document.createElement("span");
-      fallbackText.textContent = "Explore the WELLEXSA electric collection";
-      media.append(fallbackText);
-    }, { once: true });
-    media.append(image);
-    article.append(copy, media);
-    sliderTrack.append(article);
-
-    const indicator = document.createElement("button");
-    indicator.type = "button";
-    indicator.setAttribute("aria-label", `Show slide ${index + 1}: ${slide.title}`);
-    indicator.addEventListener("click", () => {
-      updateSlide(index);
-      startSliderAutoplay();
-    });
-    sliderIndicators.append(indicator);
-  });
-  sliderPrevious.hidden = slides.length < 2;
-  sliderNext.hidden = slides.length < 2;
-  const activeIndex = Math.max(0, slides.findIndex((slide) => slide.active === true));
-  updateSlide(activeIndex);
-  startSliderAutoplay();
+  const slide = records.find((item) => item.active === true) || records[0] || fallbackSlides[0];
+  const title = String(slide.title || demoScooters[0].name).trim();
+  heroBike = { name: title, model: title };
+  heroImage.src = slide.imageUrl || fallbackSlides[0].imageUrl;
+  heroImage.alt = `${title} electric scooter`;
 }
 
-sliderPrevious.addEventListener("click", () => {
-  updateSlide(currentSlideIndex - 1);
-  startSliderAutoplay();
-});
-sliderNext.addEventListener("click", () => {
-  updateSlide(currentSlideIndex + 1);
-  startSliderAutoplay();
-});
-sliderViewport.addEventListener("pointerenter", () => {
-  sliderPaused = true;
-  stopSliderAutoplay();
-});
-sliderViewport.addEventListener("pointerleave", () => {
-  sliderPaused = false;
-  startSliderAutoplay();
-});
-sliderViewport.addEventListener("focusin", () => {
-  sliderPaused = true;
-  stopSliderAutoplay();
-});
-sliderViewport.addEventListener("focusout", (event) => {
-  if (!sliderViewport.contains(event.relatedTarget)) {
-    sliderPaused = false;
-    startSliderAutoplay();
-  }
-});
-sliderViewport.addEventListener("pointerdown", (event) => {
-  if (event.pointerType === "touch") sliderViewport.dataset.swipeStart = String(event.clientX);
-});
-sliderViewport.addEventListener("pointerup", (event) => {
-  const start = Number(sliderViewport.dataset.swipeStart);
-  delete sliderViewport.dataset.swipeStart;
-  if (!Number.isFinite(start) || Math.abs(event.clientX - start) < 45) return;
-  updateSlide(currentSlideIndex + (event.clientX < start ? 1 : -1));
-  startSliderAutoplay();
-});
-document.addEventListener("visibilitychange", startSliderAutoplay);
-window.matchMedia("(prefers-reduced-motion: reduce)").addEventListener?.("change", startSliderAutoplay);
-renderSlides(fallbackSlides);
+heroImage.addEventListener("error", () => {
+  const media = heroImage.parentElement;
+  heroImage.remove();
+  media.classList.add("hero-slide-media-empty");
+  const fallbackText = document.createElement("span");
+  fallbackText.textContent = "Scooter image unavailable";
+  media.append(fallbackText);
+}, { once: true });
+heroEnquiry.addEventListener("click", () => openEnquiryForm(heroBike));
+renderSlides([]);
 
 function renderCatalog(bikes, demoMode = false) {
   grid.replaceChildren();
@@ -266,21 +131,8 @@ function renderCatalog(bikes, demoMode = false) {
 
     const body = document.createElement("div");
     body.className = "bike-card-body";
-    const top = document.createElement("div");
-    top.className = "bike-card-topline";
-    const brand = document.createElement("span");
-    brand.textContent = isDemo ? `${bike.brand || "WELLEXSA"} · DEMO` : bike.brand || "WELLEXSA SELECT";
-    const category = document.createElement("span");
-    category.textContent = isDemo ? bike.category || bike.specifications?.Category || "Concept model" : bike.batteryWarranty || "";
-    top.append(brand, category);
     const title = document.createElement("h3");
     title.textContent = bike.name || "Electric scooter";
-    const model = document.createElement("p");
-    model.className = "bike-card-model";
-    model.textContent = bike.model || "Electric scooter";
-    const description = document.createElement("p");
-    description.className = "bike-card-description";
-    description.textContent = bike.shortDescription || bike.description || "";
     const specs = document.createElement("div");
     specs.className = "bike-card-specs";
     const additional = bike.specifications && typeof bike.specifications === "object" ? bike.specifications : {};
@@ -346,7 +198,7 @@ function renderCatalog(bikes, demoMode = false) {
       : `bike-details.html?id=${encodeURIComponent(bike.id)}`;
     detailLink.innerHTML = 'View Details <span aria-hidden="true">→</span>';
     footer.append(price, detailLink);
-    body.append(top, title, model, description, specs, stock, footer, makeEnquiryButton(bike));
+    body.append(title, specs, stock, makeEnquiryButton(bike), footer);
     card.append(imageArea, body);
     grid.append(card);
   }
@@ -397,7 +249,7 @@ function makeEnquiryButton(bike) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "button button-dark enquire-now";
-  button.textContent = "Enquire Now";
+  button.textContent = "ENQUIRE NOW →";
   button.addEventListener("click", () => openEnquiryForm(bike));
   return button;
 }

@@ -29,7 +29,7 @@ export const demoScooters = [
     topSpeed: "",
     motor: "",
     chargingTime: "",
-    image: "assets/images/image1.jfif",
+    image: "assets/images/image1.png",
     shortDescription: "Available in Lithium and GEL battery options. Compare each option's warranty and range below.",
     description: "Tunwal Alfa Pro with Lithium and GEL battery options. See the separate warranty and range details below.",
     specifications: {
