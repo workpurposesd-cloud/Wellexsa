@@ -346,7 +346,14 @@ export const crmCreateCustomer = onCall({ region: "us-central1" }, async (reques
 });
 
 export const crmSubmitBikeEnquiry = onCall(
-  { region: "us-central1", maxInstances: 10 },
+  {
+    region: "us-central1",
+    maxInstances: 10,
+    cors: [
+      "http://localhost:5500",
+      "https://stunning-squirrel-b7fad7.netlify.app"
+    ]
+  },
   async (request) => {
     const data = request.data;
     if (!data || typeof data !== "object" || Array.isArray(data) ||

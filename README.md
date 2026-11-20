@@ -70,6 +70,8 @@ The CRM is separate from the disabled legacy admin system. It uses dedicated Own
 
 Website enquiries are submitted through the `crmSubmitBikeEnquiry` callable Function. The server validates the name and Indian mobile number, uses the existing hashed `crmPhoneIndex` in a transaction to link an existing customer or create one customer record, and stores each enquiry separately with a server timestamp and `new` status. Firestore Rules deny browser writes to both CRM collections and allow enquiry reads only to CRM users with `customers:view`; the Owner/Staff Enquiries tab displays the contact, bike, timestamp and new/existing match. The WhatsApp draft is offered only after the server confirms the save and requires the customer to send it manually.
 
+The callable allows browser requests only from `http://localhost:5500` and `https://stunning-squirrel-b7fad7.netlify.app`. Run `npm run test:enquiry-cors` to check both OPTIONS preflights, a rejected origin and an actual callable-formatted submission against the local Functions and Firestore emulators (requires the Firebase CLI).
+
 The current source changes are not deployed. Before making the CRM available, review the security configuration and deploy the Functions, Firestore rules, indexes and static hosting files to the intended Firebase project. Never expose the Firebase Admin SDK credentials:
 
 ```powershell
