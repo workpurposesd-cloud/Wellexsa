@@ -23,11 +23,27 @@ if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-mot
 }
 
 const grid = document.getElementById("bike-grid");
+const catalogImageObserver = "IntersectionObserver" in window
+  ? new IntersectionObserver((entries, observer) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      const image = entry.target;
+      const webpSource = image.parentElement.querySelector('source[type="image/webp"]');
+      if (webpSource && webpSource.dataset.srcset) {
+        webpSource.srcset = webpSource.dataset.srcset;
+        delete webpSource.dataset.srcset;
+      }
+      image.src = image.dataset.src;
+      delete image.dataset.src;
+      observer.unobserve(image);
+    });
+  }, { rootMargin: "0px" })
+  : null;
 const demoNotice = document.getElementById("demo-notice");
 const empty = document.getElementById("bike-empty");
 const heroImage = document.getElementById("hero-scooter");
+const heroWebpSource = document.getElementById("hero-scooter-webp");
 const heroEnquiry = document.getElementById("hero-enquiry");
-const featuredBikeHeading = document.getElementById("hero-featured-bike");
 const featuredBikeName = document.getElementById("hero-bike-name");
 const sliderControls = document.getElementById("slider-controls");
 const sliderIndicators = document.getElementById("slider-indicators");
@@ -97,13 +113,20 @@ let highlightSlides = [];
 let currentSlideIndex = 0;
 let autoSlideTimer;
 let transitionTimer;
-let renderSlidesRequest = 0;
+let slideChangeRequest = 0;
+let activeSlidesAreFallback = false;
+const slideImageLoads = new Map();
 
 function resolveBikeImageUrl(imageUrl) {
   if (typeof imageUrl !== "string") return "";
   const path = imageUrl.trim();
   const localImage = path.match(/^(?:\.\/|\/)?assets\/images\/(image[1-8])\.(?:jpe?g|jfif)$/i);
   return localImage ? `assets/images/${localImage[1].toLowerCase()}.png` : path;
+}
+
+function getWebpImageUrl(imageUrl) {
+  const localImage = imageUrl.match(/^(?:\.\/|\/)?assets\/images\/(image[1-8]|wellexsa-logo)\.png$/i);
+  return localImage ? `assets/images/${localImage[1].toLowerCase()}.webp` : "";
 }
 
 function updateSliderControls() {
@@ -142,35 +165,64 @@ function updateActiveSlideControls() {
   }
 }
 
-function showSlide(index, animate = true) {
+async function showSlide(index, animate = true) {
   if (!highlightSlides.length) return;
 
+  const request = ++slideChangeRequest;
   const nextIndex = (index + highlightSlides.length) % highlightSlides.length;
-  const previousIndex = currentSlideIndex;
-  if (animate && nextIndex === previousIndex && !heroImage.classList.contains("is-transitioning")) return;
   const slide = highlightSlides[nextIndex];
+  window.clearTimeout(transitionTimer);
+  const loadedSlide = await preloadSlide(slide);
+  if (request !== slideChangeRequest) return;
+
+  if (!loadedSlide) {
+    highlightSlides.splice(nextIndex, 1);
+    if (!highlightSlides.length) {
+      if (activeSlidesAreFallback) {
+        console.error("Could not load any homepage highlight images");
+      } else {
+        renderSlides([]);
+      }
+      return;
+    }
+    if (currentSlideIndex > nextIndex) currentSlideIndex -= 1;
+    currentSlideIndex %= highlightSlides.length;
+    updateSliderControls();
+    showSlide(nextIndex % highlightSlides.length, false);
+    return;
+  }
+
+  const previousIndex = currentSlideIndex;
+  if (animate && nextIndex === previousIndex && !heroImage.classList.contains("is-transitioning")) {
+    preloadNextSlide();
+    return;
+  }
+
   const title = typeof slide.title === "string" ? slide.title.trim() : "";
   const changeImage = () => {
+    if (request !== slideChangeRequest) return;
     heroBike = { name: title, model: title };
     featuredBikeName.textContent = title;
-    featuredBikeHeading.hidden = !title;
+    featuredBikeName.hidden = !title;
+    heroWebpSource.srcset = loadedSlide.imageUrl.endsWith(".webp") ? loadedSlide.imageUrl : "";
     heroImage.src = slide.imageUrl;
     heroImage.alt = title ? `${title} electric scooter` : "Featured electric scooter";
     requestAnimationFrame(() => heroImage.classList.remove("is-transitioning"));
   };
 
-  window.clearTimeout(transitionTimer);
   currentSlideIndex = nextIndex;
   updateActiveSlideControls();
 
   if (!animate || nextIndex === previousIndex) {
     heroImage.classList.remove("is-transitioning");
     changeImage();
-    return;
+  } else {
+    heroImage.classList.add("is-transitioning");
+    transitionTimer = window.setTimeout(changeImage, 220);
   }
 
-  heroImage.classList.add("is-transitioning");
-  transitionTimer = window.setTimeout(changeImage, 220);
+  preloadNextSlide();
+  if (!animate) restartAutoSlide();
 }
 
 function restartAutoSlide() {
@@ -180,42 +232,50 @@ function restartAutoSlide() {
 }
 
 function preloadSlide(slide) {
-  return new Promise((resolve) => {
-    const image = new Image();
-    const finish = (loaded) => {
-      image.onload = null;
-      image.onerror = null;
-      resolve(loaded ? slide : null);
+  const imageUrl = slide.imageUrl.trim();
+  if (slideImageLoads.has(imageUrl)) return slideImageLoads.get(imageUrl);
+
+  const load = new Promise((resolve) => {
+    const preferredUrl = getWebpImageUrl(imageUrl) || imageUrl;
+    const tryUrl = (url) => {
+      const image = new Image();
+      const finish = (loaded) => {
+        image.onload = null;
+        image.onerror = null;
+        if (loaded) {
+          resolve({ ...slide, imageUrl: url });
+        } else if (url !== imageUrl) {
+          tryUrl(imageUrl);
+        } else {
+          resolve(null);
+        }
+      };
+      image.onload = () => finish(image.naturalWidth > 0);
+      image.onerror = () => finish(false);
+      image.src = url;
+      if (image.complete) finish(image.naturalWidth > 0);
     };
-    image.onload = () => finish(image.naturalWidth > 0);
-    image.onerror = () => finish(false);
-    image.src = slide.imageUrl.trim();
-    if (image.complete) finish(image.naturalWidth > 0);
+    tryUrl(preferredUrl);
   });
+  slideImageLoads.set(imageUrl, load);
+  return load;
 }
 
-async function renderSlides(records) {
-  const request = ++renderSlidesRequest;
+function preloadNextSlide() {
+  if (highlightSlides.length > 1) {
+    void preloadSlide(highlightSlides[(currentSlideIndex + 1) % highlightSlides.length]);
+  }
+}
+
+function renderSlides(records) {
   const publishedSlides = records
     .filter((slide) => slide && typeof slide.imageUrl === "string" && slide.imageUrl.trim())
     .map((slide) => ({ ...slide, imageUrl: resolveBikeImageUrl(slide.imageUrl) }));
-  const candidates = publishedSlides.length ? publishedSlides : fallbackSlides;
-  let validSlides = (await Promise.all(candidates.map(preloadSlide))).filter(Boolean);
-
-  if (!validSlides.length && candidates !== fallbackSlides) {
-    validSlides = (await Promise.all(fallbackSlides.map(preloadSlide))).filter(Boolean);
-  }
-  if (request !== renderSlidesRequest) return;
-  if (!validSlides.length) {
-    console.error("Could not load any homepage highlight images");
-    return;
-  }
-
-  highlightSlides = validSlides;
+  activeSlidesAreFallback = publishedSlides.length === 0;
+  highlightSlides = activeSlidesAreFallback ? fallbackSlides : publishedSlides;
   currentSlideIndex = 0;
   updateSliderControls();
   showSlide(0, false);
-  restartAutoSlide();
 }
 
 previousSlideButton.addEventListener("click", () => {
@@ -262,12 +322,35 @@ function renderCatalog(bikes, demoMode = false) {
     imageArea.className = "bike-card-image";
     const imageUrl = resolveBikeImageUrl(bike.imageUrls?.[0]);
     if (imageUrl) {
+      const picture = document.createElement("picture");
+      const webpSource = document.createElement("source");
+      const webpUrl = getWebpImageUrl(imageUrl);
+      if (webpUrl) {
+        webpSource.type = "image/webp";
+        webpSource.dataset.srcset = webpUrl;
+        picture.append(webpSource);
+      }
       const image = document.createElement("img");
-      image.src = imageUrl;
       image.alt = isDemo ? `${bike.name} sample scooter photo` : bike.name || "Electric scooter";
       image.loading = "lazy";
-      imageArea.append(image);
-      image.addEventListener("error", () => imageArea.replaceChildren(createImageFallback(bike.name)));
+      image.decoding = "async";
+      image.fetchPriority = "low";
+      image.addEventListener("error", () => {
+        if (webpSource.srcset) {
+          webpSource.removeAttribute("srcset");
+          return;
+        }
+        imageArea.replaceChildren(createImageFallback(bike.name));
+      });
+      image.dataset.src = imageUrl;
+      picture.append(image);
+      imageArea.append(picture);
+      if (catalogImageObserver) {
+        catalogImageObserver.observe(image);
+      } else {
+        if (webpUrl) webpSource.srcset = webpUrl;
+        image.src = imageUrl;
+      }
     } else {
       imageArea.append(createImageFallback(bike.name));
     }
