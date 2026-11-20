@@ -47,7 +47,7 @@ export const demoScooters = [
     model: "Mini Lithino",
     brand: "Tunwal",
     category: "Lithium + GEL battery options",
-    image: "assets/images/image2.jfif",
+    image: "assets/images/image2.png",
     shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
     specifications: {
       "Battery Type Options": "Lithium Battery and GEL Battery",
@@ -64,7 +64,7 @@ export const demoScooters = [
     model: "Sport 63",
     brand: "Tunwal",
     category: "Lithium + GEL battery options",
-    image: "assets/images/image3.jfif",
+    image: "assets/images/image3.png",
     shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
     specifications: {
       "Battery Type Options": "Lithium Battery and GEL Battery",
@@ -81,7 +81,7 @@ export const demoScooters = [
     model: "YO Smart+",
     brand: "YO Bykes",
     category: "Lithium + GEL battery options",
-    image: "assets/images/image4.jfif",
+    image: "assets/images/image4.png",
     shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
     specifications: {
       "Battery Type Options": "Lithium Battery and GEL Battery",
@@ -98,7 +98,7 @@ export const demoScooters = [
     model: "YO Smart",
     brand: "YO Bykes",
     category: "Lithium + GEL battery options",
-    image: "assets/images/image5.jfif",
+    image: "assets/images/image5.png",
     shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
     specifications: {
       "Battery Type Options": "Lithium Battery and GEL Battery",
@@ -115,7 +115,7 @@ export const demoScooters = [
     model: "YO DX",
     brand: "YO Bykes",
     category: "Lithium + GEL battery options",
-    image: "assets/images/image6.jfif",
+    image: "assets/images/image6.png",
     shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
     specifications: {
       "Battery Type Options": "Lithium Battery and GEL Battery",
@@ -132,7 +132,7 @@ export const demoScooters = [
     model: "Double Light",
     brand: "WELLEXSA",
     category: "Lithium + GEL battery options",
-    image: "assets/images/image7.jfif",
+    image: "assets/images/image7.png",
     shortDescription: "Lithium and GEL battery options with model-specific warranty and range details.",
     specifications: {
       "Battery Type Options": "Lithium Battery and GEL Battery",
@@ -149,7 +149,7 @@ export const demoScooters = [
     model: "OKO",
     brand: "EoX Electric",
     category: "Specified range: 60 KM",
-    image: "assets/images/image8.jfif",
+    image: "assets/images/image8.png",
     shortDescription: "Specified range: 60 KM. Battery type is not specified.",
     specifications: {
       "Battery Type": "Not specified",

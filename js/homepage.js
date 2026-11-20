@@ -27,6 +27,13 @@ const demoNotice = document.getElementById("demo-notice");
 const empty = document.getElementById("bike-empty");
 const heroImage = document.getElementById("hero-scooter");
 const heroEnquiry = document.getElementById("hero-enquiry");
+const featuredBikeHeading = document.getElementById("hero-featured-bike");
+const featuredBikeName = document.getElementById("hero-bike-name");
+const sliderControls = document.getElementById("slider-controls");
+const sliderIndicators = document.getElementById("slider-indicators");
+const sliderCount = document.getElementById("slider-count");
+const previousSlideButton = document.querySelector(".slider-previous");
+const nextSlideButton = document.querySelector(".slider-next");
 const fallbackSlides = [
   {
     title: "Tunwal Alfa Pro",
@@ -38,71 +45,206 @@ const fallbackSlides = [
   {
     title: "Tunwal Mini Lithino",
     description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image2.jfif",
+    imageUrl: "assets/images/image2.png",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
     title: "YO Bykes YO Smart+",
     description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image4.jfif",
+    imageUrl: "assets/images/image4.png",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
     title: "YO Bykes YO Smart",
     description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image5.jfif",
+    imageUrl: "assets/images/image5.png",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
     title: "Tunwal Sport 63",
     description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image3.jfif",
+    imageUrl: "assets/images/image3.png",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
     title: "YO Bykes YO DX",
     description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image6.jfif",
+    imageUrl: "assets/images/image6.png",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
     title: "WELLEXSA Double Light",
     description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image7.jfif",
+    imageUrl: "assets/images/image7.png",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   },
   {
     title: "EoX Electric OKO",
     description: "Specified range: 60 KM.",
-    imageUrl: "assets/images/image8.jfif",
+    imageUrl: "assets/images/image8.png",
     buttonText: "EXPLORE NOW",
     buttonUrl: "#bikes"
   }
 ];
 let heroBike = demoScooters[0];
+let highlightSlides = [];
+let currentSlideIndex = 0;
+let autoSlideTimer;
+let transitionTimer;
+let renderSlidesRequest = 0;
 
-function renderSlides(records) {
-  const slide = records.find((item) => item.active === true) || records[0] || fallbackSlides[0];
-  const title = String(slide.title || demoScooters[0].name).trim();
-  heroBike = { name: title, model: title };
-  heroImage.src = slide.imageUrl || fallbackSlides[0].imageUrl;
-  heroImage.alt = `${title} electric scooter`;
+function resolveBikeImageUrl(imageUrl) {
+  if (typeof imageUrl !== "string") return "";
+  const path = imageUrl.trim();
+  const localImage = path.match(/^(?:\.\/|\/)?assets\/images\/(image[1-8])\.(?:jpe?g|jfif)$/i);
+  return localImage ? `assets/images/${localImage[1].toLowerCase()}.png` : path;
 }
 
-heroImage.addEventListener("error", () => {
-  const media = heroImage.parentElement;
-  heroImage.remove();
-  media.classList.add("hero-slide-media-empty");
-  const fallbackText = document.createElement("span");
-  fallbackText.textContent = "Scooter image unavailable";
-  media.append(fallbackText);
-}, { once: true });
+function updateSliderControls() {
+  const hasMultipleSlides = highlightSlides.length > 1;
+  sliderControls.hidden = !hasMultipleSlides;
+  previousSlideButton.hidden = !hasMultipleSlides;
+  nextSlideButton.hidden = !hasMultipleSlides;
+  sliderIndicators.replaceChildren();
+
+  if (!hasMultipleSlides) {
+    sliderCount.textContent = "";
+    return;
+  }
+
+  highlightSlides.forEach((slide, index) => {
+    const indicator = document.createElement("button");
+    indicator.type = "button";
+    indicator.className = "slider-indicator";
+    indicator.setAttribute("aria-label", `Show highlight image ${index + 1}: ${slide.title}`);
+    indicator.addEventListener("click", () => {
+      showSlide(index);
+      restartAutoSlide();
+    });
+    sliderIndicators.append(indicator);
+  });
+}
+
+function updateActiveSlideControls() {
+  sliderIndicators.querySelectorAll("button").forEach((indicator, index) => {
+    const isActive = index === currentSlideIndex;
+    indicator.classList.toggle("is-active", isActive);
+    indicator.setAttribute("aria-current", isActive ? "true" : "false");
+  });
+  if (highlightSlides.length > 1) {
+    sliderCount.textContent = `${String(currentSlideIndex + 1).padStart(2, "0")} / ${String(highlightSlides.length).padStart(2, "0")}`;
+  }
+}
+
+function showSlide(index, animate = true) {
+  if (!highlightSlides.length) return;
+
+  const nextIndex = (index + highlightSlides.length) % highlightSlides.length;
+  const previousIndex = currentSlideIndex;
+  if (animate && nextIndex === previousIndex && !heroImage.classList.contains("is-transitioning")) return;
+  const slide = highlightSlides[nextIndex];
+  const title = typeof slide.title === "string" ? slide.title.trim() : "";
+  const changeImage = () => {
+    heroBike = { name: title, model: title };
+    featuredBikeName.textContent = title;
+    featuredBikeHeading.hidden = !title;
+    heroImage.src = slide.imageUrl;
+    heroImage.alt = title ? `${title} electric scooter` : "Featured electric scooter";
+    requestAnimationFrame(() => heroImage.classList.remove("is-transitioning"));
+  };
+
+  window.clearTimeout(transitionTimer);
+  currentSlideIndex = nextIndex;
+  updateActiveSlideControls();
+
+  if (!animate || nextIndex === previousIndex) {
+    heroImage.classList.remove("is-transitioning");
+    changeImage();
+    return;
+  }
+
+  heroImage.classList.add("is-transitioning");
+  transitionTimer = window.setTimeout(changeImage, 220);
+}
+
+function restartAutoSlide() {
+  window.clearInterval(autoSlideTimer);
+  if (highlightSlides.length < 2) return;
+  autoSlideTimer = window.setInterval(() => showSlide(currentSlideIndex + 1), 4000);
+}
+
+function preloadSlide(slide) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    const finish = (loaded) => {
+      image.onload = null;
+      image.onerror = null;
+      resolve(loaded ? slide : null);
+    };
+    image.onload = () => finish(image.naturalWidth > 0);
+    image.onerror = () => finish(false);
+    image.src = slide.imageUrl.trim();
+    if (image.complete) finish(image.naturalWidth > 0);
+  });
+}
+
+async function renderSlides(records) {
+  const request = ++renderSlidesRequest;
+  const publishedSlides = records
+    .filter((slide) => slide && typeof slide.imageUrl === "string" && slide.imageUrl.trim())
+    .map((slide) => ({ ...slide, imageUrl: resolveBikeImageUrl(slide.imageUrl) }));
+  const candidates = publishedSlides.length ? publishedSlides : fallbackSlides;
+  let validSlides = (await Promise.all(candidates.map(preloadSlide))).filter(Boolean);
+
+  if (!validSlides.length && candidates !== fallbackSlides) {
+    validSlides = (await Promise.all(fallbackSlides.map(preloadSlide))).filter(Boolean);
+  }
+  if (request !== renderSlidesRequest) return;
+  if (!validSlides.length) {
+    console.error("Could not load any homepage highlight images");
+    return;
+  }
+
+  highlightSlides = validSlides;
+  currentSlideIndex = 0;
+  updateSliderControls();
+  showSlide(0, false);
+  restartAutoSlide();
+}
+
+previousSlideButton.addEventListener("click", () => {
+  showSlide(currentSlideIndex - 1);
+  restartAutoSlide();
+});
+nextSlideButton.addEventListener("click", () => {
+  showSlide(currentSlideIndex + 1);
+  restartAutoSlide();
+});
+const sliderViewport = document.getElementById("slider-viewport");
+let touchStartPoint;
+sliderViewport.addEventListener("pointerdown", (event) => {
+  if (event.pointerType !== "touch" || event.target.closest("button")) return;
+  touchStartPoint = { x: event.clientX, y: event.clientY };
+});
+sliderViewport.addEventListener("pointerup", (event) => {
+  if (!touchStartPoint || event.pointerType !== "touch") return;
+  const deltaX = event.clientX - touchStartPoint.x;
+  const deltaY = event.clientY - touchStartPoint.y;
+  touchStartPoint = null;
+  if (Math.abs(deltaX) < 45 || Math.abs(deltaY) > 80) return;
+  showSlide(currentSlideIndex + (deltaX < 0 ? 1 : -1));
+  restartAutoSlide();
+});
+sliderViewport.addEventListener("pointercancel", () => {
+  touchStartPoint = null;
+});
+
 heroEnquiry.addEventListener("click", () => openEnquiryForm(heroBike));
 renderSlides([]);
 
@@ -118,9 +260,10 @@ function renderCatalog(bikes, demoMode = false) {
     card.className = `bike-card${isDemo ? " is-demo" : ""}`;
     const imageArea = document.createElement("div");
     imageArea.className = "bike-card-image";
-    if (bike.imageUrls?.[0]) {
+    const imageUrl = resolveBikeImageUrl(bike.imageUrls?.[0]);
+    if (imageUrl) {
       const image = document.createElement("img");
-      image.src = bike.imageUrls[0];
+      image.src = imageUrl;
       image.alt = isDemo ? `${bike.name} sample scooter photo` : bike.name || "Electric scooter";
       image.loading = "lazy";
       imageArea.append(image);
