@@ -3615,3 +3615,302 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     transition: none;
   }
 }
+
+.homepage .benefits-section {
+  padding: clamp(48px, 5.5vw, 78px) max(5.5%, calc((100% - 1320px) / 2));
+  background: #f5f7fa;
+}
+.homepage .benefits-heading {
+  max-width: 900px;
+  margin: 0 auto 30px;
+  text-align: center;
+}
+.homepage .benefits-heading .eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 0;
+  color: #0878c9;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+.homepage .benefits-heading .eyebrow::before,
+.homepage .benefits-heading .eyebrow::after {
+  width: clamp(38px, 9vw, 112px);
+  height: 1px;
+  background: #8ebce7;
+  content: "";
+}
+.homepage .benefits-heading h2 {
+  margin: 12px 0 6px;
+  color: #142b4b;
+  font: 700 clamp(30px, 3.4vw, 43px)/1.15 var(--display);
+  letter-spacing: -.035em;
+}
+.homepage .benefits-heading > p {
+  margin: 0;
+  color: #66778a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.homepage .benefits-grid {
+  max-width: 1320px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 auto;
+  border: 0;
+}
+.homepage .benefit-item,
+.homepage .benefit-item + .benefit-item {
+  min-width: 0;
+  min-height: 178px;
+  padding: 21px 20px 19px;
+  border: 1px solid #dce4ed;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgba(24, 50, 78, .035);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.homepage .benefit-item:hover {
+  transform: translateY(-2px);
+  border-color: #b9d1e8;
+  box-shadow: 0 8px 20px rgba(24, 50, 78, .08);
+}
+.homepage .benefit-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #0878c9;
+}
+.homepage .benefit-icon svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+.homepage .benefit-item h3 {
+  margin: 13px 0 7px;
+  color: #142b4b;
+  font: 600 18px/1.3 var(--display);
+  letter-spacing: -.015em;
+}
+.homepage .benefit-item p {
+  max-width: 300px;
+  margin: 0;
+  color: #68798c;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.homepage .intro-strip {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: clamp(30px, 5vw, 72px);
+  padding: clamp(56px, 6.5vw, 90px) max(5.5%, calc((100% - 1440px) / 2));
+  border: 0;
+  background: #fff;
+}
+.homepage .intro-copy {
+  min-width: 0;
+}
+.homepage .intro-copy > .eyebrow {
+  margin: 0 0 18px;
+  color: #0878c9;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .15em;
+}
+.homepage .intro-copy h2 {
+  margin: 0;
+  color: #142b4b;
+  font: 700 clamp(37px, 4vw, 56px)/1.08 var(--display);
+  letter-spacing: -.04em;
+  text-transform: none;
+}
+.homepage .intro-copy h2 span {
+  color: #0878c9;
+}
+.homepage .intro-description {
+  max-width: 550px;
+  margin: 20px 0 22px;
+  color: #68798c;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.homepage .intro-copy > .text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  color: #0878c9;
+  border-bottom: 1px solid #9fc5e9;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-decoration: none;
+  transition: color .2s ease, gap .2s ease, border-color .2s ease;
+}
+.homepage .intro-copy > .text-link:hover {
+  gap: 14px;
+  color: #075f9e;
+  border-color: #075f9e;
+}
+.homepage .intro-showroom {
+  min-width: 0;
+  min-height: clamp(310px, 34vw, 440px);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #e0e7ee;
+  background: #f0f3f6;
+}
+.homepage .intro-showroom-label {
+  position: absolute;
+  z-index: 3;
+  top: 17px;
+  right: 19px;
+  color: #64778b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+.homepage .intro-showroom-bikes {
+  position: absolute;
+  inset: 0;
+}
+.homepage .intro-showroom-bikes::after {
+  position: absolute;
+  right: 5%;
+  bottom: 17px;
+  left: 5%;
+  height: 1px;
+  background: #d3dce5;
+  content: "";
+}
+.homepage .intro-showroom-bikes picture {
+  position: absolute;
+  bottom: 18px;
+  z-index: 1;
+  width: 54%;
+  height: 83%;
+  display: block;
+}
+.homepage .intro-showroom-bikes picture:nth-child(1) {
+  left: 0;
+}
+.homepage .intro-showroom-bikes picture:nth-child(2) {
+  left: 23%;
+  z-index: 2;
+  height: 94%;
+}
+.homepage .intro-showroom-bikes picture:nth-child(3) {
+  right: 0;
+}
+.homepage .intro-showroom-bikes img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 8px 7px rgba(28, 43, 58, .09));
+}
+
+@media (max-width: 950px) {
+  .homepage .benefits-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .homepage .benefit-item,
+  .homepage .benefit-item + .benefit-item {
+    min-height: 165px;
+  }
+  .homepage .intro-strip {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .homepage .intro-showroom {
+    min-height: clamp(320px, 55vw, 430px);
+  }
+}
+@media (max-width: 700px) {
+  .homepage .benefits-section {
+    padding: 48px 22px;
+  }
+  .homepage .benefits-heading {
+    margin-bottom: 22px;
+  }
+  .homepage .benefits-heading .eyebrow {
+    gap: 10px;
+    font-size: 9px;
+  }
+  .homepage .benefits-heading .eyebrow::before,
+  .homepage .benefits-heading .eyebrow::after {
+    width: 30px;
+  }
+  .homepage .benefits-heading h2 {
+    font-size: clamp(26px, 7vw, 34px);
+  }
+  .homepage .benefits-heading > p {
+    font-size: 12px;
+  }
+  .homepage .benefits-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .homepage .benefit-item,
+  .homepage .benefit-item + .benefit-item {
+    min-height: 168px;
+    padding: 16px 14px;
+  }
+  .homepage .benefit-icon,
+  .homepage .benefit-icon svg {
+    width: 32px;
+    height: 32px;
+  }
+  .homepage .benefit-item h3 {
+    margin-top: 10px;
+    font-size: 16px;
+  }
+  .homepage .benefit-item p {
+    font-size: 11px;
+  }
+  .homepage .intro-strip {
+    gap: 23px;
+    padding: 48px 22px;
+  }
+  .homepage .intro-copy > .eyebrow {
+    margin-bottom: 12px;
+    font-size: 10px;
+  }
+  .homepage .intro-copy h2 {
+    font-size: clamp(33px, 8.5vw, 43px);
+  }
+  .homepage .intro-description {
+    margin: 16px 0 17px;
+    font-size: 13px;
+  }
+  .homepage .intro-showroom {
+    min-height: clamp(260px, 76vw, 340px);
+  }
+}
+@media (max-width: 380px) {
+  .homepage .benefits-grid {
+    grid-template-columns: 1fr;
+  }
+  .homepage .benefit-item,
+  .homepage .benefit-item + .benefit-item {
+    min-height: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .homepage .benefit-item,
+  .homepage .intro-copy > .text-link {
+    transition: none;
+  }
+}
