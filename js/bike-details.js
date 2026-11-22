@@ -1,8 +1,8 @@
 import { db, isFirebaseConfigured } from "./firebase-config.js";
 import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { createImageFallback, demoScooters, formatPrice } from "./bikes.js";
-import { specificationFields } from "./bikes.js";
+import { createImageFallback, demoScooters, formatPrice, specificationFields } from "./bikes.js";
 import { openEnquiryForm } from "./enquiry.js";
+import { observeScrollElements } from "./site-nav.js";
 
 const container = document.getElementById("bike-details");
 const params = new URLSearchParams(window.location.search);
@@ -110,7 +110,19 @@ function renderBike(bike) {
   const enquireButton = document.createElement("button");
   enquireButton.type = "button";
   enquireButton.className = "button button-dark";
-  enquireButton.textContent = "Enquire Now";
+  const enquireLabel = document.createElement("span");
+  enquireLabel.textContent = "Enquire Now";
+  const enquireArrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  enquireArrow.setAttribute("viewBox", "0 0 24 24");
+  enquireArrow.setAttribute("fill", "none");
+  enquireArrow.setAttribute("stroke", "currentColor");
+  enquireArrow.setAttribute("stroke-width", "1.8");
+  enquireArrow.setAttribute("stroke-linecap", "round");
+  enquireArrow.setAttribute("stroke-linejoin", "round");
+  enquireArrow.setAttribute("aria-hidden", "true");
+  enquireArrow.setAttribute("focusable", "false");
+  enquireArrow.innerHTML = '<path d="M5 12h14M13 6l6 6-6 6"></path>';
+  enquireButton.append(enquireLabel, enquireArrow);
   enquireButton.addEventListener("click", () => openEnquiryForm(bike));
   actions.append(enquireButton);
   copy.append(eyebrow, title, model, price, stock);
@@ -133,16 +145,45 @@ function renderBike(bike) {
     if (value === undefined || value === null || String(value).trim() === "") return;
     const row = document.createElement("div");
     row.className = "spec-row";
+    const icon = document.createElement("span");
+    icon.className = "spec-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.append(createSpecificationIcon(String(label)));
     const name = document.createElement("span");
     name.textContent = label;
     const detail = document.createElement("span");
     detail.textContent = String(value);
-    row.append(name, detail);
+    row.append(icon, name, detail);
     specList.append(row);
   });
   if (specList.childElementCount) specs.append(specsTitle, specList);
   copy.append(specs);
   layout.append(gallery, copy);
   container.replaceChildren(container.querySelector(".back-link"), layout);
+  observeScrollElements([gallery, copy, ...specList.children]);
   document.title = `${bike.name || "Scooter details"} — WELLEXSA MOTORS`;
+}
+
+function createSpecificationIcon(label) {
+  const key = label.toLowerCase();
+  const markup = key.includes("warranty")
+    ? '<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"></path><path d="m9 12 2 2 4-4"></path>'
+    : key.includes("battery") || key.includes("chemistry")
+      ? '<rect x="3" y="7" width="17" height="10" rx="2"></rect><path d="M22 10v4M10 9l-2 3h4l-2 3"></path>'
+      : key.includes("range") || key.includes("speed")
+        ? '<path d="M5 19a9 9 0 1 1 14 0"></path><path d="m12 13 4-4"></path><circle cx="12" cy="13" r="1"></circle>'
+        : key.includes("charg")
+          ? '<path d="m13 2-3 9h6l-5 11 1-8H7l6-12Z"></path>'
+          : key.includes("motor") || key.includes("controller")
+            ? '<circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path>'
+            : '<circle cx="12" cy="12" r="9"></circle><path d="m8 12 2.5 2.5L16 9"></path>';
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("fill", "none");
+  icon.setAttribute("stroke", "currentColor");
+  icon.setAttribute("stroke-width", "1.7");
+  icon.setAttribute("stroke-linecap", "round");
+  icon.setAttribute("stroke-linejoin", "round");
+  icon.innerHTML = markup;
+  return icon;
 }

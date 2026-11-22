@@ -2,25 +2,10 @@ import { db, isFirebaseConfigured } from "./firebase-config.js";
 import { collection, onSnapshot, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { createImageFallback, demoScooters, formatPrice, getBatteryRangeOptions } from "./bikes.js";
 import { openEnquiryForm } from "./enquiry.js";
-import "./site-nav.js";
+import { observeScrollElements } from "./site-nav.js";
 
 const year = document.getElementById("year");
 if (year) year.textContent = String(new Date().getFullYear());
-
-if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-  const revealObserver = new IntersectionObserver((entries, observer) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add("is-visible");
-      observer.unobserve(entry.target);
-    });
-  }, { threshold: 0.01, rootMargin: "0px 0px -30px 0px" });
-  document.querySelectorAll(".bikes-section, .benefits-section, .intro-strip, .contact-section, .visit-banner")
-    .forEach((section) => {
-      section.classList.add("reveal-on-scroll");
-      revealObserver.observe(section);
-    });
-}
 
 const grid = document.getElementById("bike-grid");
 const catalogImageObserver = "IntersectionObserver" in window
@@ -451,6 +436,7 @@ function renderCatalog(bikes, demoMode = false) {
     body.append(title, specs, stock, makeEnquiryButton(bike), footer);
     card.append(imageArea, body);
     grid.append(card);
+    observeScrollElements([card]);
   }
 }
 

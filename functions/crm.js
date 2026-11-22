@@ -359,6 +359,7 @@ export const crmSubmitBikeEnquiry = onCall(
     maxInstances: 10,
     cors: [
       "http://localhost:5500",
+      "http://127.0.0.1:5500",
       "https://stunning-squirrel-b7fad7.netlify.app"
     ]
   },

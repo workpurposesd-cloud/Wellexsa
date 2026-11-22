@@ -15,6 +15,7 @@ let corsServer;
 let corsFunctionUrl;
 const allowedOrigins = [
   "http://localhost:5500",
+  "http://127.0.0.1:5500",
   "https://stunning-squirrel-b7fad7.netlify.app"
 ];
 
@@ -71,7 +72,7 @@ test("accepts a callable-formatted public enquiry submission", async () => {
   const response = await fetch(functionUrl, {
     method: "POST",
     headers: {
-      Origin: allowedOrigins[0],
+      Origin: allowedOrigins[1],
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -84,7 +85,7 @@ test("accepts a callable-formatted public enquiry submission", async () => {
     })
   });
 
-  assert.equal(response.headers.get("access-control-allow-origin"), allowedOrigins[0]);
+  assert.equal(response.headers.get("access-control-allow-origin"), allowedOrigins[1]);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { result: { submitted: true } });
 });

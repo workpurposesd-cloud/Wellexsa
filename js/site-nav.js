@@ -5,6 +5,33 @@ const menuButton = document.querySelector(".menu-toggle");
 const nav = document.querySelector(".main-nav");
 const header = document.querySelector(".site-header");
 const mobileNavigation = window.matchMedia("(max-width: 767px)");
+const observedRevealElements = new WeakSet();
+const scrollRevealObserver =
+  "IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.06, rootMargin: "0px 0px -24px 0px" })
+    : null;
+
+export function observeScrollElements(elements) {
+  if (!scrollRevealObserver) return;
+  for (const element of elements) {
+    if (!(element instanceof Element) || observedRevealElements.has(element)) continue;
+    observedRevealElements.add(element);
+    element.classList.add("reveal-on-scroll");
+    scrollRevealObserver.observe(element);
+  }
+}
+
+observeScrollElements(document.querySelectorAll(
+  ".bikes-section, .benefits-section, .intro-strip, .contact-section, .visit-banner, .site-footer, " +
+  ".auth-layout, .account-main, .details-main, .legal-main > section, .benefit-item, " +
+  ".site-footer .footer-brand-block, .site-footer .footer-column, .site-footer .footer-bottom"
+));
 
 function closeProfileMenu() {
   const profileButton = header?.querySelector(".nav-profile-button");

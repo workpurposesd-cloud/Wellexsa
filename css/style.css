@@ -3876,7 +3876,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .homepage .contact-section.reveal-on-scroll .contact-lead,
 .homepage .contact-section.reveal-on-scroll .showroom-card {
-  transition: opacity .38s ease, transform .38s ease, box-shadow .3s ease;
+  transition: opacity .5s ease, transform .5s ease, box-shadow .3s ease;
 }
 .homepage .contact-section.reveal-on-scroll:not(.is-visible) .contact-lead,
 .homepage .contact-section.reveal-on-scroll:not(.is-visible) .showroom-card {
@@ -3889,7 +3889,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   transform: none;
 }
 .homepage .contact-section.reveal-on-scroll .contact-action {
-  transition: opacity .32s ease, transform .3s ease, box-shadow .3s ease, border-color .3s ease, color .3s ease;
+  transition: opacity .48s ease, transform .48s ease, box-shadow .3s ease, border-color .3s ease, color .3s ease;
 }
 .homepage .contact-section.reveal-on-scroll:not(.is-visible) .contact-action {
   opacity: 0;
@@ -3899,14 +3899,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   opacity: 1;
   transform: none;
 }
-.homepage .contact-section.reveal-on-scroll.is-visible .contact-action:nth-child(1) { transition-delay: .06s; }
-.homepage .contact-section.reveal-on-scroll.is-visible .contact-action:nth-child(2) { transition-delay: .12s; }
-.homepage .contact-section.reveal-on-scroll.is-visible .contact-action:nth-child(3) { transition-delay: .18s; }
-.homepage .contact-section.reveal-on-scroll.is-visible .contact-action:nth-child(4) { transition-delay: .24s; }
+.homepage .contact-section.reveal-on-scroll.is-visible .contact-action:nth-child(1) { transition-delay: .08s; }
+.homepage .contact-section.reveal-on-scroll.is-visible .contact-action:nth-child(2) { transition-delay: .16s; }
+.homepage .contact-section.reveal-on-scroll.is-visible .contact-action:nth-child(3) { transition-delay: .24s; }
+.homepage .contact-section.reveal-on-scroll.is-visible .contact-action:nth-child(4) { transition-delay: .32s; }
 .homepage .contact-section.reveal-on-scroll.is-visible .showroom-card { transition-delay: .12s; }
 .homepage .contact-section.reveal-on-scroll.is-visible .contact-action:hover {
   transition-delay: 0s;
+  transition-duration: .28s;
   transform: translateY(-3px);
+}
+.homepage .contact-section.reveal-on-scroll.is-visible .showroom-card:hover {
+  transition-delay: 0s;
+  transition-duration: .28s;
 }
 
 @media (min-width: 981px) and (max-width: 1100px) {
@@ -4886,7 +4891,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .homepage .visit-banner.showroom-promo.reveal-on-scroll .showroom-promo-image,
 .homepage .visit-banner.showroom-promo.reveal-on-scroll .showroom-promo-content > *,
 .homepage .visit-banner.showroom-promo.reveal-on-scroll .showroom-promo-strip {
-  transition: opacity .36s ease, transform .36s ease, background-color .28s ease, box-shadow .28s ease;
+  transition: opacity .5s ease, transform .5s ease, background-color .28s ease, box-shadow .28s ease;
 }
 .homepage .visit-banner.showroom-promo.reveal-on-scroll:not(.is-visible) .showroom-promo-image,
 .homepage .visit-banner.showroom-promo.reveal-on-scroll:not(.is-visible) .showroom-promo-content > *,
@@ -4900,13 +4905,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   opacity: 1;
   transform: none;
 }
-.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > .showroom-promo-eyebrow { transition-delay: .04s; }
-.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > h2 { transition-delay: .09s; }
-.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > .showroom-promo-description { transition-delay: .14s; }
-.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > .showroom-promo-features { transition-delay: .19s; }
-.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > .showroom-promo-cta { transition-delay: .24s; }
-.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-strip { transition-delay: .2s; }
-.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-cta:hover { transition-delay: 0s; }
+.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > .showroom-promo-eyebrow { transition-delay: .07s; }
+.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > h2 { transition-delay: .14s; }
+.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > .showroom-promo-description { transition-delay: .21s; }
+.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > .showroom-promo-features { transition-delay: .28s; }
+.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-content > .showroom-promo-cta { transition-delay: .35s; }
+.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-strip { transition-delay: .28s; }
+.homepage .visit-banner.showroom-promo.reveal-on-scroll.is-visible .showroom-promo-cta:hover {
+  transition-delay: 0s;
+  transition-duration: .24s;
+}
 
 @media (max-width: 1024px) {
   .homepage .showroom-promo-main {
@@ -5031,5 +5039,337 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .homepage .showroom-promo-cta:hover,
   .homepage .showroom-promo-cta:hover svg {
     transform: none;
+  }
+}
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity .55s cubic-bezier(.2, .7, .25, 1), transform .55s cubic-bezier(.2, .7, .25, 1);
+}
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: none;
+}
+.homepage .bike-card.reveal-on-scroll {
+  transition: opacity .55s cubic-bezier(.2, .7, .25, 1), transform .55s cubic-bezier(.2, .7, .25, 1), box-shadow .28s ease, border-color .28s ease;
+}
+.homepage .bike-card.reveal-on-scroll:nth-child(2) { transition-delay: .07s; }
+.homepage .bike-card.reveal-on-scroll:nth-child(3) { transition-delay: .14s; }
+.homepage .bike-card.reveal-on-scroll:nth-child(4) { transition-delay: .21s; }
+.homepage .bike-card.reveal-on-scroll:nth-child(5) { transition-delay: .28s; }
+.homepage .bike-card.reveal-on-scroll:nth-child(6) { transition-delay: .35s; }
+.homepage .bike-card.reveal-on-scroll:nth-child(7) { transition-delay: .42s; }
+.homepage .bike-card.reveal-on-scroll:nth-child(8) { transition-delay: .49s; }
+.homepage .bike-card.reveal-on-scroll.is-visible:hover { transition-delay: 0s; transition-duration: .28s; }
+.homepage .benefit-item.reveal-on-scroll {
+  transition: opacity .55s cubic-bezier(.2, .7, .25, 1), transform .55s cubic-bezier(.2, .7, .25, 1), box-shadow .26s ease, border-color .26s ease;
+}
+.homepage .benefit-item.reveal-on-scroll:nth-child(2) { transition-delay: .07s; }
+.homepage .benefit-item.reveal-on-scroll:nth-child(3) { transition-delay: .14s; }
+.homepage .benefit-item.reveal-on-scroll:nth-child(4) { transition-delay: .21s; }
+.homepage .benefit-item.reveal-on-scroll.is-visible:hover { transition-delay: 0s; transition-duration: .26s; }
+.homepage .site-footer .footer-explore.reveal-on-scroll { transition-delay: .07s; }
+.homepage .site-footer .footer-account.reveal-on-scroll { transition-delay: .14s; }
+.homepage .site-footer .footer-addresses.reveal-on-scroll { transition-delay: .21s; }
+.homepage .site-footer .footer-phone.reveal-on-scroll { transition-delay: .28s; }
+.homepage .site-footer .footer-social.reveal-on-scroll { transition-delay: .35s; }
+.homepage .site-footer .footer-column.reveal-on-scroll.is-visible:hover { transition-delay: 0s; }
+
+.site-header .main-nav a,
+.site-footer a,
+.button,
+.contact-action,
+.direction-link,
+.showroom-location-whatsapp,
+.showroom-whatsapp,
+.social-link {
+  transition-timing-function: cubic-bezier(.2, .7, .25, 1);
+}
+.site-header .main-nav a:not(.nav-cart)::after {
+  transition: transform .25s cubic-bezier(.2, .7, .25, 1);
+}
+.button,
+.enquire-now,
+.showroom-promo-cta {
+  transition: color .24s ease, background-color .24s ease, border-color .24s ease, box-shadow .24s ease, transform .24s ease;
+}
+.button-dark,
+.homepage .bike-card .enquire-now,
+.showroom-promo-cta {
+  color: #fff;
+  border-color: #0878c9;
+  background: #0878c9;
+  box-shadow: 0 4px 12px rgba(8, 120, 201, .14);
+}
+.button-dark:hover:not(:disabled),
+.homepage .bike-card .enquire-now:hover:not(:disabled),
+.showroom-promo-cta:hover {
+  color: #fff;
+  border-color: #0566ad;
+  background: #0566ad;
+  box-shadow: 0 7px 17px rgba(8, 91, 151, .2);
+  transform: translateY(-2px);
+}
+.homepage .hero-actions .button-dark:hover:not(:disabled) {
+  box-shadow: 0 7px 17px rgba(8, 91, 151, .2);
+}
+.button-dark:active:not(:disabled),
+.homepage .bike-card .enquire-now:active:not(:disabled),
+.showroom-promo-cta:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(8, 91, 151, .16);
+}
+.homepage .hero-actions .button-dark {
+  box-shadow: 0 4px 12px rgba(8, 120, 201, .14);
+}
+.homepage .bike-card .enquire-now:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(8, 120, 201, .14);
+}
+.homepage .showroom-promo-cta {
+  color: #fff;
+  border-color: #0878c9;
+  background: #0878c9;
+  box-shadow: 0 5px 15px rgba(8, 120, 201, .18);
+}
+.homepage .showroom-promo-cta:hover {
+  color: #fff;
+  border-color: #0566ad;
+  background: #0566ad;
+  box-shadow: 0 8px 18px rgba(8, 91, 151, .2);
+}
+.homepage .showroom-promo-cta:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(8, 91, 151, .16);
+}
+.homepage .showroom-promo-cta svg { background: #0566ad; }
+.button-outline,
+.button-light {
+  color: #172b49;
+  border-color: #b8c8d8;
+  background: #fff;
+  transition: color .24s ease, background-color .24s ease, border-color .24s ease, transform .24s ease;
+}
+.button-outline:hover:not(:disabled),
+.button-light:hover:not(:disabled) {
+  color: #172b49;
+  border-color: #8eb6d7;
+  background: #f0f7fd;
+  transform: translateY(-1px);
+}
+.button:active:not(:disabled) { transform: translateY(0); }
+.button span[aria-hidden="true"],
+.button svg,
+.showroom-promo-cta svg {
+  transition: transform .24s ease;
+}
+.button:hover span[aria-hidden="true"],
+.button:hover svg,
+.showroom-promo-cta:hover svg {
+  transform: translateX(3px);
+}
+.button:focus-visible,
+.site-header a:focus-visible,
+.site-footer a:focus-visible {
+  outline: 2px solid #0878c9;
+  outline-offset: 3px;
+}
+.homepage .hero-actions .hero-enquiry {
+  color: #172b49;
+  border-color: #9eb3c7;
+  background: transparent;
+}
+.homepage .hero-actions .hero-enquiry:hover {
+  color: #172b49;
+  border-color: #8eb6d7;
+  background: #f0f7fd;
+  transform: translateY(-1px);
+}
+
+.whatsapp-button {
+  color: #fff;
+  border-color: #25d366;
+  background: #25d366;
+}
+.whatsapp-button-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  fill: currentColor;
+  transition: transform .24s ease;
+}
+.whatsapp-button:hover:not(:disabled) {
+  color: #fff;
+  border-color: #1da851;
+  background: #1da851;
+  box-shadow: 0 6px 15px rgba(37, 211, 102, .2);
+  transform: translateY(-2px);
+}
+.whatsapp-button:hover .whatsapp-button-icon { transform: rotate(-3deg); }
+.whatsapp-button:active:not(:disabled) { transform: translateY(0); }
+.homepage .contact-action[href^="https://wa.me"] .contact-action-icon,
+.homepage .whatsapp-brand-icon {
+  color: #fff;
+  background: #25d366;
+  transition: background-color .24s ease, transform .24s ease;
+}
+.homepage .contact-action[href^="https://wa.me"]:hover .contact-action-icon,
+.homepage .showroom-whatsapp:hover .whatsapp-brand-icon {
+  background: #1da851;
+  transform: translateY(-1px);
+}
+.homepage .contact-action[href^="https://wa.me"] .contact-action-icon svg {
+  fill: currentColor;
+  stroke: none;
+  transition: transform .24s ease;
+}
+.homepage .contact-action[href^="https://wa.me"]:hover .contact-action-icon svg {
+  transform: rotate(-3deg);
+}
+.homepage .showroom-location-whatsapp:hover { color: #1da851; }
+.homepage .contact-action[href^="tel:"]:hover .contact-action-icon svg {
+  transform: translateY(-1px) rotate(-4deg);
+}
+.homepage .contact-action-icon svg,
+.homepage .footer-phone a .footer-meta-icon {
+  transition: color .24s ease, transform .24s ease;
+}
+
+.homepage .maps-brand-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  display: inline-block;
+  fill: none;
+  stroke: none;
+}
+.homepage .maps-brand-icon path { stroke: none; }
+.homepage .contact-action-icon.maps-action-icon .maps-brand-icon {
+  width: 22px;
+  height: 22px;
+}
+.homepage .direction-link {
+  color: #172b49;
+  border-color: #c9d6e3;
+  background: #fff;
+}
+.homepage .direction-link:hover {
+  color: #172b49;
+  border-color: #aac3da;
+  background: #f3f8fc;
+}
+.homepage .direction-link span {
+  transition: transform .24s ease;
+}
+.homepage .direction-link:hover span { transform: translateX(3px); }
+
+.social-link svg {
+  transition: transform .24s ease, color .24s ease;
+}
+.social-link[data-social="instagram"]:hover svg,
+.social-link[data-social="instagram"]:focus-visible svg {
+  color: #e4405f;
+  transform: scale(1.06) rotate(-3deg);
+}
+.social-link[data-social="facebook"]:hover svg,
+.social-link[data-social="facebook"]:focus-visible svg {
+  color: #1877f2;
+  transform: scale(1.06);
+}
+.homepage .site-footer .social-link[data-social="instagram"]:hover,
+.homepage .site-footer .social-link[data-social="instagram"]:focus-visible,
+.homepage .site-footer .social-link[data-social="facebook"]:hover,
+.homepage .site-footer .social-link[data-social="facebook"]:focus-visible {
+  color: #fff;
+}
+.homepage .site-footer .social-link[data-social="instagram"]:hover svg,
+.homepage .site-footer .social-link[data-social="instagram"]:focus-visible svg {
+  color: #e4405f;
+}
+.homepage .site-footer .social-link[data-social="facebook"]:hover svg,
+.homepage .site-footer .social-link[data-social="facebook"]:focus-visible svg {
+  color: #1877f2;
+}
+
+.homepage .bike-card,
+.homepage .benefit-item,
+.homepage .showroom-card {
+  transition: transform .26s ease, box-shadow .26s ease, border-color .26s ease;
+}
+.homepage .bike-card:hover,
+.homepage .benefit-item:hover,
+.homepage .showroom-card:hover {
+  transform: translateY(-2px);
+  border-color: #c7d7e6;
+  box-shadow: 0 10px 24px rgba(23, 43, 73, .1);
+}
+.homepage .bike-card-image img { transition: transform .3s ease; }
+.homepage .bike-card:hover .bike-card-image img { transform: scale(1.01); }
+.homepage .footer-column a,
+.homepage .footer-legal a {
+  transition: color .22s ease, transform .22s ease;
+}
+.homepage .footer-column a:hover,
+.homepage .footer-column a:focus-visible,
+.homepage .footer-legal a:hover,
+.homepage .footer-legal a:focus-visible {
+  color: #d7edff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll,
+  .reveal-on-scroll.is-visible {
+    opacity: 1;
+    transform: none;
+    transition: none !important;
+    transition-delay: 0s !important;
+  }
+  .button:hover,
+  .button:active,
+  .button-dark:hover:not(:disabled),
+  .button-dark:active:not(:disabled),
+  .button-outline:hover:not(:disabled),
+  .button-light:hover:not(:disabled),
+  .whatsapp-button:hover:not(:disabled),
+  .whatsapp-button:active:not(:disabled),
+  .homepage .hero-actions .button-dark:hover:not(:disabled),
+  .homepage .hero-actions .hero-enquiry:hover,
+  .homepage .bike-card .enquire-now:hover:not(:disabled),
+  .homepage .bike-card .enquire-now:active:not(:disabled),
+  .social-link:hover,
+  .site-header .main-nav a:hover,
+  .site-footer a:hover,
+  .social-link[data-social="instagram"]:hover svg,
+  .social-link[data-social="facebook"]:hover svg,
+  .homepage .bike-card:hover,
+  .homepage .benefit-item:hover,
+  .homepage .showroom-card:hover,
+  .homepage .bike-card:hover .bike-card-image img,
+  .homepage .contact-action[href^="tel:"]:hover .contact-action-icon svg,
+  .homepage .contact-action[href^="https://wa.me"]:hover .contact-action-icon,
+  .homepage .contact-action[href^="https://wa.me"]:hover .contact-action-icon svg,
+  .homepage .showroom-whatsapp:hover .whatsapp-brand-icon,
+  .homepage .direction-link:hover span,
+  .homepage .footer-phone a:hover .footer-meta-icon,
+  .whatsapp-button:hover .whatsapp-button-icon,
+  .showroom-promo-cta:hover svg,
+  .homepage .showroom-promo-cta:active {
+    transform: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .homepage .hero-slide {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: start;
+  }
+  .homepage .hero-slide-copy,
+  .homepage .hero-slide-media {
+    align-self: start;
+  }
+  .homepage .hero-slide-media {
+    height: clamp(250px, 70vw, 310px);
+    margin-top: 18px;
   }
 }
