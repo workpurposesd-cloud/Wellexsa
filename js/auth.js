@@ -82,7 +82,7 @@ function profileSaveErrorMessage(error) {
 
 function customerDestination() {
   const requestedDestination = new URLSearchParams(window.location.search).get("return");
-  return ["account.html", "checkout.html"].includes(requestedDestination)
+  return requestedDestination === "account.html"
     ? requestedDestination
     : "index.html";
 }

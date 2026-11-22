@@ -13,6 +13,8 @@
       "ignore": [
         "node_modules",
         ".git",
+        ".env.demo-wellexsa-cors",
+        ".env*",
         "firebase-debug.log",
         "firebase-debug.*.log"
       ]

@@ -5,6 +5,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 import { crmAuth, crmFunctions } from "./crm-config.js";
+import { crmLoginErrorMessage, crmRoleMismatchMessage } from "./crm-login-errors.js";
 
 const form = document.getElementById("crm-login-form");
 const message = document.getElementById("crm-login-message");
@@ -40,14 +41,22 @@ form.addEventListener("submit", async (event) => {
     const response = await sessionCall();
     if (response.data?.role !== role) {
       await signOut(crmAuth);
-      throw new Error("This account is not authorized for this CRM workspace.");
+      signedIn = false;
+      showMessage(crmRoleMismatchMessage(role, response.data?.role));
+      return;
     }
     window.location.replace(role === "owner" ? "owner.html" : "staff.html");
   } catch (error) {
-    if (signedIn) await signOut(crmAuth);
-    showMessage(error.message === "This account is not authorized for this CRM workspace."
-      ? error.message
-      : "Sign-in failed or CRM access is not active. Check your details or contact the Owner.");
+    if (signedIn) {
+      try {
+        await signOut(crmAuth);
+      } catch (signOutError) {
+        console.error("Could not clear the rejected CRM session", {
+          code: signOutError?.code || signOutError?.name || "unknown"
+        });
+      }
+    }
+    showMessage(crmLoginErrorMessage(error, role));
   } finally {
     submit.disabled = false;
   }

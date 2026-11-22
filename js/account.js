@@ -156,12 +156,9 @@ function createOrderCard(orderDocument) {
   total.textContent = Number.isSafeInteger(order.totalAmount)
     ? `Total: ₹${order.totalAmount.toLocaleString("en-IN")}`
     : "Total unavailable";
-  const paymentStatus = cleanValue(order.paymentStatus);
-  const payment = document.createElement("span");
-  payment.textContent = `Payment: ${paymentStatus === "captured" ? "Successful" : paymentStatus || "Pending"}`;
   const fulfillment = document.createElement("span");
   fulfillment.textContent = `Order status: ${cleanValue(order.orderStatus) || "Pending"}`;
-  footer.append(total, payment, fulfillment);
+  footer.append(total, fulfillment);
 
   card.append(header, items, footer);
   return card;

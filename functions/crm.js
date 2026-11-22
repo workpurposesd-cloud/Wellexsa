@@ -82,21 +82,29 @@ function normalizePermissions(value, defaults = []) {
 async function requireCrmUser(request, permission = null) {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign in to the CRM.");
   if (request.auth.token.email_verified !== true) {
-    throw new HttpsError("permission-denied", "Verify the account email before using CRM access.");
+    throw new HttpsError("failed-precondition", "Verify the account email before using CRM access.");
   }
   const snapshot = await db().collection("crmAccess").doc(request.auth.uid).get();
-  const access = snapshot.exists ? snapshot.data() : null;
-  if (!access || access.active !== true || !["owner", "staff"].includes(access.role)) {
-    throw new HttpsError("permission-denied", "This account does not have active CRM access.");
+  if (!snapshot.exists) {
+    throw new HttpsError("not-found", "No CRM authorization record exists for this account.");
+  }
+  const access = snapshot.data();
+  if (access.active !== true) {
+    throw new HttpsError("permission-denied", "CRM access is inactive. Contact the Owner.");
+  }
+  if (!["owner", "staff"].includes(access.role)) {
+    throw new HttpsError("permission-denied", "The CRM authorization role is invalid.");
   }
   if (access.role === "staff" && (!Array.isArray(access.permissions) ||
       access.permissions.some((item) => !CRM_PERMISSIONS.has(item)))) {
     throw new HttpsError("permission-denied", "The CRM access record is invalid.");
   }
   const authTime = request.auth.token.auth_time;
-  if (!Number.isSafeInteger(authTime) || !Number.isSafeInteger(access.minimumAuthTime) ||
-      authTime < access.minimumAuthTime) {
-    throw new HttpsError("permission-denied", "Sign out and sign in again to activate this CRM session.");
+  if (!Number.isSafeInteger(access.minimumAuthTime)) {
+    throw new HttpsError("failed-precondition", "The CRM access record is missing its authentication-time requirement. Ask an Owner to re-provision access.");
+  }
+  if (!Number.isSafeInteger(authTime) || authTime < access.minimumAuthTime) {
+    throw new HttpsError("failed-precondition", "Sign out and sign in again to activate this CRM session.");
   }
   if (permission && access.role !== "owner" && (!Array.isArray(access.permissions) ||
       !access.permissions.includes(permission))) {

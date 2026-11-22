@@ -1,17 +1,10 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { auth, isFirebaseConfigured } from "./firebase-config.js";
-import { readCart } from "./bikes.js";
 
 const menuButton = document.querySelector(".menu-toggle");
 const nav = document.querySelector(".main-nav");
 const header = document.querySelector(".site-header");
-const cartLink = document.querySelector(".nav-cart");
 const mobileNavigation = window.matchMedia("(max-width: 767px)");
-const cartCount = readCart().reduce((total, item) => total + item.quantity, 0);
-
-document.querySelectorAll(".cart-count").forEach((counter) => {
-  counter.textContent = String(cartCount);
-});
 
 function closeProfileMenu() {
   const profileButton = header?.querySelector(".nav-profile-button");
@@ -136,15 +129,15 @@ if (header && !header.querySelector(".nav-profile")) {
   }
 
   function syncHeaderLayout() {
-    if (!header || !nav || !cartLink) return;
+    if (!header || !nav) return;
     if (mobileNavigation.matches) {
-      nav.append(cartLink, profileRegion, signupLink);
+      nav.append(profileRegion, signupLink);
       signupLink.classList.add("mobile-account-link");
     } else {
       profileMenu.insertBefore(signinLink, identity);
       profileMenu.insertBefore(signupLink, identity);
       signupLink.classList.remove("mobile-account-link");
-      header.append(cartLink, profileRegion);
+      header.append(profileRegion);
     }
     updateAuthLinkVisibility();
     nav.classList.remove("is-open");

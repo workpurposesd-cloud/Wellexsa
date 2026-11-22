@@ -2839,43 +2839,93 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .homepage .visit-banner {
   width: calc(100% - 48px);
   max-width: 1440px;
-  min-height: 260px;
+  min-height: 302px;
   margin: 38px auto;
-  padding: 52px clamp(32px, 8vw, 112px);
-  border: 0;
-  border-top: 2px solid #0878c9;
-  border-radius: 7px;
+  padding: 56px clamp(32px, 8vw, 112px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, .75fr);
+  align-items: center;
+  gap: clamp(32px, 7vw, 96px);
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(167,196,219,.16);
+  border-radius: 20px;
   color: #fff;
-  background: #172534;
-  box-shadow: 0 10px 24px rgba(27,42,57,.1);
+  background:
+    radial-gradient(ellipse at 86% 16%, rgba(32,125,190,.3), transparent 34%),
+    linear-gradient(118deg, #101c29 0%, #172b3d 56%, #122a3c 100%);
+  box-shadow: 0 22px 50px rgba(18,39,57,.15);
   animation: none;
 }
+.homepage .visit-banner::before {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  right: -9%;
+  width: min(45vw, 540px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(190,216,234,.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 34px rgba(190,216,234,.035), 0 0 0 78px rgba(190,216,234,.025);
+  content: "";
+  pointer-events: none;
+  transform: translateY(-50%);
+}
 .homepage .visit-banner .eyebrow {
-  color: #a9c7df;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #b6d6ec;
+  font-size: 9px;
+  letter-spacing: .18em;
+}
+.homepage .visit-banner .eyebrow::before {
+  width: 30px;
+  height: 1px;
+  flex: 0 0 auto;
+  background: #58aee4;
+  content: "";
 }
 .homepage .visit-banner h2 {
-  margin-top: 14px;
+  margin: 17px 0 0;
   color: #fff;
-  font: 700 clamp(42px, 5vw, 60px)/1.04 var(--display);
-  letter-spacing: -.04em;
+  font: 700 clamp(42px, 4.7vw, 62px)/1.02 var(--display);
+  letter-spacing: -.045em;
   text-transform: none;
+}
+.homepage .visit-banner-action {
+  max-width: 400px;
+  padding: 25px 0 25px clamp(24px, 3vw, 42px);
+  border-left: 1px solid rgba(190,216,234,.2);
+}
+.homepage .visit-banner-action > p {
+  margin: 0 0 22px;
+  color: #cad7e1;
+  font-size: 14px;
+  line-height: 1.8;
 }
 .homepage .visit-banner .button-light {
   min-height: 46px;
+  gap: 18px;
   color: #fff;
   border: 1px solid #0878c9;
-  border-radius: 4px;
-  background: #0878c9;
-  box-shadow: none;
+  border-radius: 999px;
+  background: linear-gradient(110deg, #0878c9, #1594d3);
+  box-shadow: 0 9px 22px rgba(0,111,184,.24);
 }
 .homepage .visit-banner .button-light:hover {
   color: #fff;
-  border-color: #0566ad;
+  border-color: #1594d3;
   background: #0566ad;
-  box-shadow: none;
+  box-shadow: 0 12px 26px rgba(0,111,184,.32);
 }
 .homepage .visit-banner .banner-index {
-  color: #9aa8b5;
+  position: absolute;
+  top: 23px;
+  right: 27px;
+  color: #9cb1c1;
+  font-size: 9px;
+  letter-spacing: .15em;
 }
 
 .homepage .site-footer {
@@ -3086,20 +3136,33 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .homepage .visit-banner {
     width: calc(100% - 30px);
     min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
     margin: 24px auto;
-    padding: 36px 24px;
-    border-radius: 6px;
+    padding: 34px 25px;
+    gap: 20px;
+    border-radius: 16px;
   }
   .homepage .visit-banner h2 {
     font-size: clamp(39px, 10vw, 48px);
   }
+  .homepage .visit-banner-action {
+    max-width: 460px;
+    padding: 18px 0 0;
+    border-top: 1px solid rgba(190,216,234,.2);
+    border-left: 0;
+  }
+  .homepage .visit-banner-action > p {
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
   .homepage .visit-banner .button-light {
     min-height: 46px;
-    margin-top: 20px;
+    margin-top: 0;
   }
   .homepage .visit-banner .banner-index {
-    display: block;
-    margin-top: 19px;
+    top: 18px;
+    right: 17px;
+    font-size: 8px;
   }
   .homepage .site-footer {
     grid-template-columns: 1fr 1fr;
@@ -3711,28 +3774,39 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .homepage .intro-strip {
   display: grid;
-  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(360px, .86fr) minmax(0, 1.14fr);
   align-items: center;
-  gap: clamp(30px, 5vw, 72px);
-  padding: clamp(56px, 6.5vw, 90px) max(5.5%, calc((100% - 1440px) / 2));
+  gap: clamp(30px, 4.5vw, 68px);
+  padding: clamp(64px, 6.5vw, 92px) max(5.5%, calc((100% - 1440px) / 2));
   border: 0;
-  background: #fff;
+  background:
+    radial-gradient(circle at 4% 50%, rgba(8,120,201,.055), transparent 24%),
+    linear-gradient(135deg, #fafbfd 0%, #fff 58%, #f7f9fb 100%);
 }
 .homepage .intro-copy {
   min-width: 0;
 }
 .homepage .intro-copy > .eyebrow {
-  margin: 0 0 18px;
+  margin: 0 0 16px;
   color: #0878c9;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .15em;
 }
+.homepage .intro-copy > .eyebrow::before {
+  width: 34px;
+  height: 2px;
+  display: inline-block;
+  margin-right: 12px;
+  vertical-align: middle;
+  background: #0878c9;
+  content: "";
+}
 .homepage .intro-copy h2 {
   margin: 0;
   color: #142b4b;
-  font: 700 clamp(37px, 4vw, 56px)/1.08 var(--display);
-  letter-spacing: -.04em;
+  font: 700 clamp(42px, 4.35vw, 62px)/1.04 var(--display);
+  letter-spacing: -.055em;
   text-transform: none;
 }
 .homepage .intro-copy h2 span {
@@ -3740,86 +3814,85 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 .homepage .intro-description {
   max-width: 550px;
-  margin: 20px 0 22px;
+  margin: 22px 0 24px;
   color: #68798c;
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.75;
 }
 .homepage .intro-copy > .text-link {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 0;
-  color: #0878c9;
-  border-bottom: 1px solid #9fc5e9;
-  font-size: 13px;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 18px;
+  color: #fff;
+  border: 1px solid #0878c9;
+  border-radius: 999px;
+  background: #0878c9;
+  box-shadow: 0 10px 24px rgba(8,120,201,.16);
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
   text-decoration: none;
-  transition: color .2s ease, gap .2s ease, border-color .2s ease;
+  transition: color .2s ease, gap .2s ease, border-color .2s ease, background .2s ease, transform .2s ease;
 }
 .homepage .intro-copy > .text-link:hover {
   gap: 14px;
-  color: #075f9e;
+  color: #fff;
   border-color: #075f9e;
+  background: #075f9e;
+  transform: translateY(-2px);
 }
 .homepage .intro-showroom {
   min-width: 0;
-  min-height: clamp(310px, 34vw, 440px);
+  min-height: 0;
   position: relative;
   overflow: hidden;
-  border: 1px solid #e0e7ee;
-  background: #f0f3f6;
+  isolation: isolate;
+  border: 1px solid #454b50;
+  border-radius: 18px;
+  aspect-ratio: 16 / 9;
+  background: #22282d;
+  box-shadow: 0 28px 64px rgba(25,34,41,.2), inset 0 0 0 7px rgba(255,255,255,.035);
 }
 .homepage .intro-showroom-label {
   position: absolute;
   z-index: 3;
-  top: 17px;
-  right: 19px;
-  color: #64778b;
+  top: 24px;
+  left: 26px;
+  padding: 9px 12px;
+  color: #e6d3ad;
+  border: 1px solid rgba(213,185,137,.38);
+  background: rgba(23,27,30,.6);
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: .16em;
+  letter-spacing: .19em;
+}
+.homepage .intro-showroom-label::before {
+  width: 7px;
+  height: 7px;
+  display: inline-block;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: #d3b27a;
+  box-shadow: 0 0 12px rgba(211,178,122,.8);
+  content: "";
 }
 .homepage .intro-showroom-bikes {
   position: absolute;
   inset: 0;
 }
-.homepage .intro-showroom-bikes::after {
-  position: absolute;
-  right: 5%;
-  bottom: 17px;
-  left: 5%;
-  height: 1px;
-  background: #d3dce5;
-  content: "";
-}
 .homepage .intro-showroom-bikes picture {
-  position: absolute;
-  bottom: 18px;
-  z-index: 1;
-  width: 54%;
-  height: 83%;
   display: block;
-}
-.homepage .intro-showroom-bikes picture:nth-child(1) {
-  left: 0;
-}
-.homepage .intro-showroom-bikes picture:nth-child(2) {
-  left: 23%;
-  z-index: 2;
-  height: 94%;
-}
-.homepage .intro-showroom-bikes picture:nth-child(3) {
-  right: 0;
-}
-.homepage .intro-showroom-bikes img {
   width: 100%;
   height: 100%;
+}
+.homepage .intro-showroom-bikes img {
   display: block;
-  object-fit: contain;
-  object-position: center bottom;
-  filter: drop-shadow(0 8px 7px rgba(28, 43, 58, .09));
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 @media (max-width: 950px) {
@@ -3835,7 +3908,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     gap: 28px;
   }
   .homepage .intro-showroom {
-    min-height: clamp(320px, 55vw, 430px);
+    min-height: 0;
+    aspect-ratio: 16 / 9;
   }
 }
 @media (max-width: 700px) {
@@ -3888,15 +3962,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     margin-bottom: 12px;
     font-size: 10px;
   }
+  .homepage .intro-copy > .eyebrow::before {
+    width: 26px;
+  }
   .homepage .intro-copy h2 {
-    font-size: clamp(33px, 8.5vw, 43px);
+    font-size: clamp(36px, 9vw, 46px);
   }
   .homepage .intro-description {
-    margin: 16px 0 17px;
     font-size: 13px;
   }
+  .homepage .intro-copy > .text-link {
+    min-height: 44px;
+    font-size: 11px;
+  }
   .homepage .intro-showroom {
-    min-height: clamp(260px, 76vw, 340px);
+    min-height: 0;
+    border-radius: 14px;
+  }
+  .homepage .intro-showroom-label {
+    top: 15px;
+    left: 14px;
+    padding: 7px 9px;
+    font-size: 7px;
+  }
+  .homepage .intro-showroom-bikes {
+    inset: 20px 4px 2px;
   }
 }
 @media (max-width: 380px) {

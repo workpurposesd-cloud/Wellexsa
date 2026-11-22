@@ -1,17 +1,45 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
+
+// The Functions emulator enables allow-all CORS for its worker; load the callable
+// without that emulator-only override so these checks exercise its configured policy.
+process.env.FIREBASE_DEBUG_MODE = "false";
+const { crmSubmitBikeEnquiry } = await import("../crm.js");
 
 const projectId = process.env.GCLOUD_PROJECT || "demo-wellexsa-cors";
 const functionsEmulatorHost = process.env.FUNCTIONS_EMULATOR_HOST || "127.0.0.1:5001";
 const functionUrl = `http://${functionsEmulatorHost}/${projectId}/us-central1/crmSubmitBikeEnquiry`;
+let corsServer;
+let corsFunctionUrl;
 const allowedOrigins = [
   "http://localhost:5500",
   "https://stunning-squirrel-b7fad7.netlify.app"
 ];
 
+test.before(async () => {
+  corsServer = createServer((request, response) => {
+    void crmSubmitBikeEnquiry(request, response);
+  });
+  await new Promise((resolve, reject) => {
+    corsServer.once("error", reject);
+    corsServer.listen(0, "127.0.0.1", resolve);
+  });
+  const address = corsServer.address();
+  assert.ok(address && typeof address !== "string");
+  corsFunctionUrl = `http://127.0.0.1:${address.port}`;
+});
+
+test.after(async () => {
+  if (!corsServer) return;
+  await new Promise((resolve, reject) => {
+    corsServer.close((error) => error ? reject(error) : resolve());
+  });
+});
+
 async function preflight(origin) {
-  return fetch(functionUrl, {
+  return fetch(corsFunctionUrl, {
     method: "OPTIONS",
     headers: {
       Origin: origin,

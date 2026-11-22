@@ -16,13 +16,11 @@ A responsive electric-scooter showroom with customer accounts, live Firestore li
 - Administrator sign-in, dashboard and provisioning are temporarily disabled. Existing admin accounts and records are not deleted.
 - A separate, private Owner/Staff CRM is implemented under `crm/`; it uses server-checked `crmAccess` records and does not restore legacy administrator claims or admin pages. It is not available on the live site until its Functions, Firestore rules, indexes and hosting assets are deliberately deployed.
 - Existing published bikes and customer purchases remain available; privileged inventory changes are temporarily unavailable.
-- Stock-aware shopping cart and checkout. Customers can choose a supported battery/range combination on the product details page; the trusted backend validates that choice against the published product specifications, recalculates the product listing price, and checks aggregate stock.
-- Firebase Cloud Functions create Razorpay orders, verify payment signatures and gateway status, handle Razorpay webhooks and atomically deduct stock only once after a captured payment.
-- Customer order history remains available to each customer. Administrator order/payment/customer views are temporarily unavailable.
+- The scooter catalogue displays published product details, prices, specifications and stock. Customers contact the showroom through product enquiries; the website does not offer online checkout.
+- Existing customer order history remains available as read-only history. New orders are not created through the website.
 - The **SAVE & PUBLISH BIKE** workflow requires a main image, price, name and the five required specifications. Optional fields do not block publishing.
 - **Use DECCAN R details** fills the requested DECCAN R – RAYA FLUX information into the form. Add the showroom's original three-angle product photo before publishing; the original photo was not included in this project, so the website does not substitute an invented DECCAN R image.
 - Firebase Web App configuration is populated for project `wellexsa`; confirm it is the showroom's intended Firebase project before deploying. No Firebase service-account credentials or demonstration logins are included.
-- Cart contents are kept in the customer's browser for convenience; prices, stock, payment and orders are always verified and stored server-side.
 
 ## Firebase project setup
 
@@ -62,15 +60,29 @@ If the browser reports `auth/configuration-not-found`, Firebase Authentication h
 
 ### Legacy administrator access temporarily disabled
 
-The admin pages, sign-in, password-change flow, privileged Functions, Firestore/Storage admin rules and local provisioning commands are disabled. Existing Auth users, custom claims, username mappings, bikes, orders, payments and Storage objects are retained. The public customer and Razorpay payment flows remain separate. Re-enabling admin access requires an intentional source change and deployment of the corresponding rules and Functions; do not enable only the client UI.
+The admin pages, sign-in, password-change flow, privileged Functions, Firestore/Storage admin rules and local provisioning commands are disabled. Existing Auth users, custom claims, username mappings, bikes, historical orders and Storage objects are retained. Customer authentication and CRM access remain separate. Re-enabling admin access requires an intentional source change and deployment of the corresponding rules and Functions; do not enable only the client UI.
 
 ## Private Owner/Staff CRM
 
-The CRM is separate from the disabled legacy admin system. It uses dedicated Owner/Staff pages at `crm/owner-login.html` and `crm/staff-login.html`; access is authorized by server-written `crmAccess/{uid}` records, checked by callable Functions and Firestore Rules. Customer-facing pages do not link to the CRM. Customer authentication and Razorpay remain separate. The showroom catalogue now uses Enquire Now instead of cart and checkout actions; the existing cart and checkout implementation remains in the repository but is no longer linked from the bike shopping flow.
+The CRM is separate from the disabled legacy admin system. It uses dedicated Owner/Staff pages at `crm/owner-login.html` and `crm/staff-login.html`; access is authorized by server-written `crmAccess/{uid}` records, checked by callable Functions and Firestore Rules. Customer-facing pages do not link to the CRM. The showroom catalogue uses Enquire Now; purchases are arranged directly with the showroom.
 
 Website enquiries are submitted through the `crmSubmitBikeEnquiry` callable Function. The server validates the name and Indian mobile number, uses the existing hashed `crmPhoneIndex` in a transaction to link an existing customer or create one customer record, and stores each enquiry separately with a server timestamp and `new` status. Firestore Rules deny browser writes to both CRM collections and allow enquiry reads only to CRM users with `customers:view`; the Owner/Staff Enquiries tab displays the contact, bike, timestamp and new/existing match. The WhatsApp draft is offered only after the server confirms the save and requires the customer to send it manually.
 
 The callable allows browser requests only from `http://localhost:5500` and `https://stunning-squirrel-b7fad7.netlify.app`. Run `npm run test:enquiry-cors` to check both OPTIONS preflights, a rejected origin and an actual callable-formatted submission against the local Functions and Firestore emulators (requires the Firebase CLI).
+
+### Functions parameter: `ADMIN_AUTH_WEB_API_KEY`
+
+`functions/index.js` declares `ADMIN_AUTH_WEB_API_KEY` as a Functions string parameter. The legacy administrator sign-in uses it as the Firebase Web API key for Firebase Authentication's `signInWithPassword` endpoint. Those administrator callables are currently disabled. This value is not a Firebase Admin SDK credential; never put a real project value in source code or documentation.
+
+For local/demo emulator testing, Firebase CLI loads project-specific dotenv files from `functions/.env.<project-id>`. The CORS emulator test uses project `demo-wellexsa-cors`, so its parameter belongs in `functions/.env.demo-wellexsa-cors`. Use only a dummy test value for that demo configuration, for example:
+
+```dotenv
+ADMIN_AUTH_WEB_API_KEY=TEST_ONLY_DUMMY_VALUE
+```
+
+Do not use a production project's key for demo tests. The legacy administrator callables are disabled, so the demo value is not used to authenticate an account.
+
+For Functions deployment, `ADMIN_AUTH_WEB_API_KEY` has no default. Provide it when the Firebase CLI prompts for the parameter, or configure it locally in `functions/.env.<target-project-id>` before deployment. If legacy administrator sign-in is intentionally re-enabled, configure the Web API key for the target Firebase project. Keep dotenv files out of source control; the repository ignores them and the Functions upload configuration excludes them.
 
 The current source changes are not deployed. Before making the CRM available, review the security configuration and deploy the Functions, Firestore rules, indexes and static hosting files to the intended Firebase project. Never expose the Firebase Admin SDK credentials:
 
@@ -88,14 +100,18 @@ The reported production site is hosted on Netlify. Deploy the Firebase Functions
 
 ### Provision the first Owner
 
-Use an existing, verified Firebase Authentication account and trusted Application Default Credentials. This operation creates only the CRM role record; it does not set a password, custom claim or legacy admin role.
+Enable **Email/Password** in Firebase Console under **Authentication → Sign-in method**. Add the local hostname (such as `127.0.0.1`) and deployed site hostname under **Authentication → Settings → Authorized domains**. The trusted provisioning script uses Application Default Credentials; authenticate locally with an authorized Google Cloud identity and never place service-account credentials in the repository:
 
 ```powershell
-$env:GOOGLE_CLOUD_PROJECT = "YOUR_PROJECT_ID"
-node scripts/provision-crm-owner.mjs owner@example.com --confirm-owner=owner@example.com
+ npm install
+gcloud auth application-default login
+$env:GOOGLE_CLOUD_PROJECT = "wellexsa"
+node scripts/provision-crm-owner.mjs
 ```
 
-The Owner record requires a new sign-in after the minimum session time shown by the script. Keep the CRM owner login URL private and use an organization-managed email account.
+The script asks for the email and requires an exact typed confirmation before creating or promoting an existing account. For a new Auth account, it prompts for the password twice without echoing it; use a password with at least 12 characters. It creates the user and sets that new account's password through the Admin SDK, then writes the Owner record to `crmAccess/{uid}` using the actual Auth UID. Existing accounts keep their current passwords; the script does not reset them. Existing Staff accounts are never promoted without the exact `PROMOTE email` confirmation. A different active Owner blocks provisioning.
+
+If the email is not verified, sign in once at the Owner page to receive the Firebase verification email, then verify before continuing. The access record requires a fresh authentication after its `minimumAuthTime`; sign out and sign in again after two seconds. The script does not print verification links, add custom claims or change Firestore Rules.
 
 ### Staff onboarding and access
 
@@ -103,7 +119,7 @@ Sign in at the Owner workspace and use **Staff access → Add staff**. Each staf
 
 ### Existing customer-profile migration
 
-The importer reads existing `users/{uid}` profiles and creates separate CRM lead/index records. It does not update or delete customer profiles, Auth users, orders, bikes, payments or Storage objects. Invalid phones and phone collisions are queued for staff review and never silently linked.
+The importer reads existing `users/{uid}` profiles and creates separate CRM lead/index records. It does not update or delete customer profiles, Auth users, historical orders, bikes or Storage objects. Invalid phones and phone collisions are queued for staff review and never silently linked.
 
 Run the dry-run first; it performs no writes:
 
@@ -141,32 +157,19 @@ status: "published" | "draft" | "archived",
 createdAt, updatedAt
 ```
 
-The public website queries only `status == "published"`; published bikes with zero units show **OUT OF STOCK** and cannot be added to a cart. Privileged inventory reads and writes are disabled while admin access is paused. Existing documents and images are retained.
+The public website queries only `status == "published"`; published bikes with zero units show **OUT OF STOCK**. Privileged inventory reads and writes are disabled while admin access is paused. Existing documents and images are retained.
 
 ### WELLEXSA demonstration model previews
 
-While live inventory is loading, if there are no published bikes, or if Firestore cannot be reached, the homepage displays eight clearly labeled demo models. A later live inventory snapshot replaces the previews. Their supplied specifications are sample data, prices and stock are unset, and their local JFIF images are demo imagery; verify the model, photograph and specifications before publishing actual inventory. Demo cards cannot be added to the cart. This preview does not write to Firestore.
+While live inventory is loading, if there are no published bikes, or if Firestore cannot be reached, the homepage displays eight clearly labeled demo models. A later live inventory snapshot replaces the previews. Their supplied specifications are sample data, prices and stock are unset, and their local JFIF images are demo imagery; verify the model, photograph and specifications before publishing actual inventory. Demo cards are for display only and do not create orders. This preview does not write to Firestore.
 
 The prior admin-only demo model editor is unavailable while administrator access is paused. Public demo previews do not write to Firestore.
 
-### `orders/{orderId}`
+### Historical orders
 
-Orders are written and updated by trusted Cloud Functions only:
-
-```text
-userId, customer: { name, email, phone }, shipping: { name, phone, address, city, state, postalCode },
-items: [{ bikeId, name, brand, model, imageUrl, quantity, unitPrice, lineTotal, batteryOption?: { batteryType, range, warranty } }],
-totalAmount (INR), currency, paymentStatus, orderStatus, razorpayOrderId,
-razorpayPaymentId, paymentCapturedAt, refundId/refundStatus, createdAt, updatedAt
-```
-
-Customers may read only their own orders; direct client writes are denied. `paymentStatus` is controlled by payment verification/webhooks. `orderStatus` tracks fulfillment separately. The backend checks selected battery/range options and aggregate stock at checkout and again in a Firestore transaction after confirmed capture; duplicate webhook/callback processing does not deduct stock twice. Admin order review and refunds are unavailable while administrator access is paused.
+Existing `orders/{orderId}` documents are retained. Customers may continue to read their own historical order records; client writes remain denied. This project no longer creates new website orders, and this source cleanup does not delete or migrate historical records.
 
 Customer profiles are readable by their owner only. The administrator customer directory and its callable are unavailable while administrator access is paused.
-
-### `checkoutRequests/{uid_requestId}` and `paymentIssues/{issueId}`
-
-These are private backend operational records. Direct client access is denied. Historical product names, quantities and prices are snapshotted in each order; archiving a product does not delete orders.
 
 ### `homepageSlides/{slideId}` and `adminUsernames/{normalizedUsername}`
 
@@ -185,30 +188,6 @@ If there are no enabled published slides, the homepage uses eight local model sl
 
 The prior admin-only DECCAN R editor is unavailable while administrator access is paused. The original product photo remains intentionally unbundled because it was not supplied.
 
-## Razorpay and secure payment setup
-
-1. Create/verify the merchant account in Razorpay and begin in **Test Mode**. Obtain the test Key ID and Key Secret from the Razorpay Dashboard.
-2. Set backend credentials from a trusted project operator; these values are stored as Firebase Functions secrets, not frontend files:
-
-   ```powershell
-   firebase functions:secrets:set RAZORPAY_KEY_SECRET
-   firebase functions:secrets:set RAZORPAY_WEBHOOK_SECRET
-   ```
-
-   Use the Razorpay test-mode Key Secret and a separately generated webhook secret. Keep both out of source control and chat.
-3. During the first Functions deployment, provide `RAZORPAY_KEY_ID` as the test key and `RAZORPAY_MODE` as `test` when prompted for the declared function parameters. The backend rejects a key whose `rzp_test_` / `rzp_live_` prefix disagrees with the configured mode.
-4. Deploy Functions, then register a Razorpay webhook in the merchant dashboard using:
-
-   ```text
-   https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/razorpayWebhook
-   ```
-
-   Select `payment.captured`, `payment.failed`, and `refund.processed`; paste the exact webhook secret set above. Confirm the deployed region/project URL in Firebase before saving it.
-5. Test successful, failed and dismissed checkout flows in Razorpay Test Mode. Confirm the server-side signature/API check and webhook update the order, then confirm stock changes once only for a verified capture. Never treat a browser callback alone as proof of payment.
-6. Live mode remains disabled until the merchant account is verified and production testing is complete. Only then set the live Key ID/Key Secret and production webhook secret through Firebase secret/parameter configuration, set `RAZORPAY_MODE` to `live`, redeploy Functions and replace the webhook endpoint. Do not place a live Key Secret in frontend code. Payment integration is not live merely because these source files exist.
-
-UPI, eligible cards and net banking are presented by Razorpay Checkout according to the merchant account, customer eligibility and Razorpay configuration. This website never collects or stores card number, CVV or payment credentials.
-
 ## Local testing
 
 After verifying the Firebase Web App config and deploying Functions, indexes and rules, serve the project over HTTP from its root (opening the HTML as a `file:` URL does not support Firebase ES modules consistently):
@@ -224,17 +203,17 @@ python -m http.server 8000
 Open `http://localhost:8000` and test the authentication paths separately:
 
 1. **Customer signup:** in a test Firebase project, open `signup.html`, submit a valid name, email, mobile number and matching password of at least 8 characters. Confirm the user appears in Firebase Authentication and a matching `users/{uid}` profile is created in Firestore. If the profile write fails after Auth creates the user, signup explains that the account already exists, resets the button, and provides a link to My Account to retry profile completion; do not submit signup again for that email.
-2. **Customer login:** sign out, open `signin.html`, and sign in with that email and password. Normal sign-in returns to the homepage; only an explicit protected-page return such as `?return=account.html` or `?return=checkout.html` resumes that page. Verify the shared profile icon opens the customer menu while signed in and Sign In / Create Account while logged out. Try a wrong password and verify the page displays a useful error without exposing credentials.
+2. **Customer login:** sign out, open `signin.html`, and sign in with that email and password. Normal sign-in returns to the homepage; only an explicit protected-page return such as `?return=account.html` resumes that page. Verify the shared profile icon opens the customer menu while signed in and Sign In / Create Account while logged out. Try a wrong password and verify the page displays a useful error without exposing credentials.
 3. **Admin shutdown:** open each admin URL directly and confirm it returns the host's 404 or the local unavailable page, with no login/password forms or dashboard controls. Confirm the admin callables and rules deny privileged access after deploying the changes.
-4. **Customer orders:** sign in as a customer and confirm only that customer's order history is available; verify product browsing, cart, checkout and payment behavior remain separate from admin access.
+4. **Customer order history and enquiries:** confirm a customer can read only their own historical orders. Submit a product enquiry and verify it appears in the CRM; no website checkout or online order creation is available.
 
-If signup returns `400`, confirm the Web App config belongs to the intended existing project, Email/Password is enabled, and the API key is not blocking Identity Toolkit. Then test protected account/order history and sign-out. Try publishing a bike with missing required fields, an invalid image type, and an image larger than 10 MB only after administrator access has been deliberately re-enabled. Set stock to 10, add to cart, test quantity limits, and check out in Razorpay test mode. Verify failed/cancelled payments do not reduce stock, a verified successful payment reduces it once, zero stock disables purchase, and repeated webhook delivery does not double-deduct.
+If signup returns `400`, confirm the Web App config belongs to the intended existing project, Email/Password is enabled, and the API key is not blocking Identity Toolkit. Then test protected account/order history and sign-out. Try publishing a bike with missing required fields, an invalid image type, and an image larger than 10 MB only after administrator access has been deliberately re-enabled. Confirm published catalogue prices/specifications and product enquiries remain available.
 
 If local Python is unavailable, use any static HTTP server that serves this folder without changing the project's Firebase access rules.
 
 ## Deploy the website
 
-After Firebase setup, Razorpay test-mode webhook setup and a local smoke test:
+After Firebase setup and local authentication, enquiry and CRM smoke tests:
 
 ```powershell
 firebase deploy --only hosting,firestore:rules,storage,functions
@@ -245,8 +224,7 @@ Firebase Hosting serves the static HTML/CSS/JavaScript. Firebase Authentication,
 ## Security and operations
 
 - Firestore and Storage admin access is currently hard-disabled by the rules; hiding pages is not the security boundary.
-- `orders`, `checkoutRequests` and payment operational data are not client-writable. Payment creation and verification, webhook processing, stock deduction, refund requests and order fulfillment changes go through callable/HTTP Cloud Functions.
-- The Razorpay webhook is signature-checked against the raw request body. The browser success handler also calls a server verification routine; neither the frontend nor an admin control can directly mark payment as successful.
+- Historical `orders` are read-only to website clients. Existing order and customer records are retained; CRM purchase tracking records showroom sales separately.
 - Existing inventory counts and order data remain stored in Firestore while the admin dashboard is unavailable.
 - Customer accounts are regular Firebase Authentication users and cannot grant themselves admin claims.
 - Do not commit credentials, private keys or `.env` files.

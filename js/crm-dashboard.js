@@ -21,8 +21,7 @@ const state = {
   completedFollowUps: [],
   staff: [],
   models: [],
-  audit: [],
-  onlineOrders: []
+  audit: []
 };
 let toastTimeout;
 
@@ -831,12 +830,6 @@ function renderAudit() {
     state.purchases.filter((item) => !item.isArchived).forEach((item) => {
       counts.set(item.bikeModel, (counts.get(item.bikeModel) || 0) + 1);
     });
-    state.onlineOrders.filter((order) => order.paymentStatus === "captured").forEach((order) => {
-      (Array.isArray(order.items) ? order.items : []).forEach((item) => {
-        const model = item.model || item.name || "Unspecified model";
-        counts.set(model, (counts.get(model) || 0) + (Number.isSafeInteger(item.quantity) ? item.quantity : 0));
-      });
-    });
     [...counts].sort((a, b) => b[1] - a[1]).forEach(([model, count]) => {
       const row = make("div", "crm-compact-row");
       row.append(make("strong", "", model), make("small", "", `${count} sold`));
@@ -857,26 +850,6 @@ function renderAudit() {
   }
 }
 
-function renderOnlineOrders() {
-  const rows = document.getElementById("crm-online-order-rows");
-  if (!rows) return;
-  rows.replaceChildren();
-  state.onlineOrders.forEach((order) => {
-    const row = make("tr");
-    appendCell(row, order.id);
-    appendCell(row, order.customer?.name || order.customer?.email || order.userId);
-    appendCell(row, dateText(order.createdAt));
-    appendCell(row, `${order.paymentStatus || "—"} / ${order.orderStatus || "—"}`);
-    appendCell(row, Number.isSafeInteger(order.totalAmount) ? `₹${order.totalAmount.toLocaleString("en-IN")}` : "—");
-    rows.append(row);
-  });
-  if (!rows.childElementCount) {
-    const row = make("tr");
-    appendCell(row, "No website orders found.");
-    rows.append(row);
-  }
-}
-
 function renderStats() {
   const root = document.getElementById("crm-stats");
   if (!root) return;
@@ -889,11 +862,6 @@ function renderStats() {
   const overdue = active.filter((customer) => customer.nextFollowUpAt &&
     indiaDateKey(dateValue(customer.nextFollowUpAt)) < today).length;
   const offlineSales = state.purchases.filter((item) => !item.isArchived).length;
-  const onlineSales = state.onlineOrders
-    .filter((order) => order.paymentStatus === "captured")
-    .reduce((total, order) => total + (Array.isArray(order.items)
-      ? order.items.reduce((sum, item) => sum + (Number.isSafeInteger(item.quantity) ? item.quantity : 0), 0)
-      : 0), 0);
   const cards = [
     ["Total customers", state.customers.filter((item) => !item.isArchived).length],
     ["New leads", state.customers.filter((item) => item.status === "new" && !item.isArchived).length],
@@ -902,8 +870,7 @@ function renderStats() {
     ["Overdue follow-ups", overdue],
     ["Purchased customers", state.customers.filter((item) => item.status === "purchased" && !item.isArchived).length],
     ["Not interested", state.customers.filter((item) => item.status === "not_interested" && !item.isArchived).length],
-    [state.role === "owner" ? "Bikes sold · all channels" : "Offline purchases",
-      state.role === "owner" ? offlineSales + onlineSales : offlineSales]
+    ["Offline purchases", offlineSales]
   ];
   root.replaceChildren();
   cards.forEach(([label, count]) => {
@@ -924,7 +891,6 @@ function renderAll() {
   renderIntakes();
   renderStaff();
   renderAudit();
-  renderOnlineOrders();
   const name = document.getElementById("crm-user-name");
   if (name) name.textContent = state.session?.displayName || (state.role === "owner" ? "Owner" : "Staff");
   const bikeFilter = document.getElementById("crm-bike-filter");
@@ -972,12 +938,8 @@ async function loadData() {
     state.models = Array.isArray(models.data?.models) ? models.data.models : [];
     state.staff = staff.data?.staff || [];
     if (state.role === "owner") {
-      const [audit, orders] = await Promise.all([
-        getDocs(query(collection(crmDb, "crmAuditEvents"), orderBy("createdAt", "desc"), limit(50))),
-        getDocs(query(collection(crmDb, "orders"), orderBy("createdAt", "desc")))
-      ]);
+      const audit = await getDocs(query(collection(crmDb, "crmAuditEvents"), orderBy("createdAt", "desc"), limit(50)));
       state.audit = audit.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
-      state.onlineOrders = orders.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
     }
     message.textContent = "";
     renderAll();

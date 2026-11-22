@@ -4,14 +4,13 @@
   "type": "module",
   "main": "index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "lint": "node --check index.js && node --check crm.js"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.0.0",
-    "razorpay": "^2.9.5"
+    "firebase-functions": "^6.0.0"
   }
 }
