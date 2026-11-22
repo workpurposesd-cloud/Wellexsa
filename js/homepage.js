@@ -365,14 +365,22 @@ function renderCatalog(bikes, demoMode = false) {
     const batteryOptions = getBatteryRangeOptions(bike);
     const optionTypes = [...new Set(batteryOptions.map((option) => option.batteryType))];
     const controllerWarranty = additional["Motor Controller Warranty"];
+    const formatWarrantyTerm = (value) => {
+      if (typeof value !== "string") return "";
+      const match = /^(\d+)\s+years?$/i.exec(value.trim());
+      return match ? `${match[1]}-year` : value.trim();
+    };
     const hasBatteryOptions = batteryOptions.length > 0;
     const fixedRange = additional["Specified Range"];
     const values = hasBatteryOptions
       ? [
         ...optionTypes.map((batteryType) => {
           const options = batteryOptions.filter((option) => option.batteryType === batteryType);
-          const ranges = options.map((option) => option.range).join(", ");
-          return [batteryType, `${options[0].warranty} warranty · ${ranges}`];
+          const ranges = options.map((option) => option.range.replace(/\s*km$/i, "").trim());
+          const rangeText = ranges.length > 1
+            ? `${ranges.slice(0, -1).join(", ")} & ${ranges[ranges.length - 1]} km range options`
+            : `${ranges[0]} km range`;
+          return [batteryType, `${formatWarrantyTerm(options[0].warranty)} warranty · ${rangeText}`];
         }),
         ["Motor controller warranty", controllerWarranty]
       ]
@@ -400,10 +408,26 @@ function renderCatalog(bikes, demoMode = false) {
     for (const [label, value] of values) {
       if (!value) continue;
       const block = document.createElement("div");
+      block.className = "bike-card-spec-item";
       const caption = document.createElement("span");
-      caption.textContent = label;
+      caption.className = "bike-card-spec-caption";
+      const iconType = /battery/i.test(label) ? "battery" : /warranty/i.test(label) ? "warranty" : "";
+      if (iconType) {
+        const icon = document.createElement("span");
+        icon.className = "bike-card-spec-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.innerHTML = iconType === "battery"
+          ? '<svg viewBox="0 0 24 24"><rect x="3" y="7" width="17" height="10" rx="2"></rect><path d="M20 10h2v4h-2M7 10v4m4-4v4m4-4v4"></path></svg>'
+          : '<svg viewBox="0 0 24 24"><path d="m12 3 8 3v5c0 5-3.4 8.3-8 10-4.6-1.7-8-5-8-10V6l8-3Z"></path><path d="m9 12 2 2 4-4"></path></svg>';
+        caption.append(icon, document.createTextNode(label));
+      } else {
+        caption.textContent = label;
+      }
       const detail = document.createElement("strong");
-      detail.textContent = String(value);
+      detail.className = "bike-card-spec-value";
+      detail.textContent = /warranty/i.test(label)
+        ? `${formatWarrantyTerm(String(value))} coverage`
+        : String(value);
       block.append(caption, detail);
       specs.append(block);
     }
