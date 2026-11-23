@@ -22,6 +22,88 @@ A responsive electric-scooter showroom with customer accounts, live Firestore li
 - **Use DECCAN R details** fills the requested DECCAN R – RAYA FLUX information into the form. Add the showroom's original three-angle product photo before publishing; the original photo was not included in this project, so the website does not substitute an invented DECCAN R image.
 - Firebase Web App configuration is populated for project `wellexsa`; confirm it is the showroom's intended Firebase project before deploying. No Firebase service-account credentials or demonstration logins are included.
 
+## Engineering documentation
+
+- [API status and current endpoints](./docs/api.md)
+- [Database operations and data handling](./docs/database.md)
+- [Firebase CRM migration plan](./docs/firebase-crm-migration.md)
+- [Deployment readiness checklist](./docs/deployment-checklist.md)
+
+## Local Express and MySQL backend
+
+The implemented Express server provides Firebase ID-token verification, transaction-backed customer, staff, enquiry, follow-up and sale operations, catalogue and website-content APIs, Owner reporting/audit APIs, versioned phone encryption for public enquiries, and MySQL-backed role/permission checks. See [docs/api.md](./docs/api.md) for the routes and their current limits. The routes have automated tests, but have not been integration-tested against the live MySQL schema.
+
+The existing Firebase CRM frontend has **not yet been migrated** to the Express/MySQL API. The pages under `crm/` and the existing Firebase Functions/Firestore CRM operations remain in place and unchanged. Deploying or starting the Express backend does not switch the live CRM from Firebase to MySQL. Cutover requires separately approving the schema and seed, verifying the API against a disposable database, and updating the CRM integration. MySQL migrations and reference seeds are never run automatically at startup.
+
+The server reads local settings from `server/.env`; this file is ignored by Git. From Command Prompt, copy the example and edit only the copy:
+
+```cmd
+cd /d C:\Users\COMP\Desktop\Wellexsa\server
+copy .env.example .env
+```
+
+In the MySQL client, an administrator can create the local database and a dedicated account with a generated password, then grant the app only the requested data permissions:
+
+```sql
+CREATE DATABASE IF NOT EXISTS wellexsa
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE USER 'wellexsa_app'@'127.0.0.1' IDENTIFIED BY RANDOM PASSWORD;
+GRANT SELECT, INSERT, UPDATE, DELETE ON wellexsa.* TO 'wellexsa_app'@'127.0.0.1';
+SHOW GRANTS FOR 'wellexsa_app'@'127.0.0.1';
+```
+
+MySQL displays the generated application password when it creates the account. Save it directly into `MYSQL_PASSWORD` in `server/.env` and a password manager; do not paste it into source files, commit it, or send it in chat. This `CREATE USER` statement intentionally does not overwrite an existing account. If it reports that the account already exists, stop and inspect its grants before deciding whether to reuse or rotate it. Do not put the MySQL administrator password in `.env`.
+
+After setting `FIREBASE_PROJECT_ID`, `CORS_ORIGINS`, and the MySQL settings in the local `.env`, run the safe connection check from `server/`:
+
+```cmd
+npm run db:check
+```
+
+It runs only `SELECT VERSION()` and `SELECT 1`, reports the server version, and closes the pool. It does not create tables or run migrations. `npm start` uses the same local `.env`; `npm test` runs the backend's automated tests. The migration runner is a separate, explicit command and is never invoked by server startup. It requires a dedicated migration account; do not grant schema-changing privileges to `wellexsa_app`.
+
+### Explicit local schema migration
+
+The migration runner accepts MySQL 8.0.16 or later in the 8.0 series (including MySQL 8.0.42). Have the database administrator create a separate local migration account with only the privileges needed to create this schema and read/write the migration ledger (`CREATE`, `REFERENCES`, `SELECT`, `INSERT`, and `UPDATE` on `wellexsa.*`). For the local database, an administrator can run:
+
+```sql
+CREATE USER 'wellexsa_migrator'@'127.0.0.1' IDENTIFIED BY RANDOM PASSWORD;
+GRANT CREATE, REFERENCES, SELECT, INSERT, UPDATE ON wellexsa.* TO 'wellexsa_migrator'@'127.0.0.1';
+SHOW GRANTS FOR 'wellexsa_migrator'@'127.0.0.1';
+```
+
+Save MySQL's generated password directly into the ignored `.env.migrations` file. Do not use the administrator account or the application account for migrations. Review any extra privilege needed before adding it.
+
+In Command Prompt, create and edit the ignored migration-only environment file:
+
+```cmd
+cd /d C:\Users\COMP\Desktop\Wellexsa\server
+copy .env.migrations.example .env.migrations
+notepad .env.migrations
+```
+
+Set the migration account password in `.env.migrations` locally and keep that file out of source control. The migration runner uses the `MYSQL_MIGRATION_USER` and `MYSQL_MIGRATION_PASSWORD` variables, not the application credentials. Then explicitly confirm the exact database name:
+
+```cmd
+npm run db:migrate -- --confirm-database wellexsa
+```
+
+The runner verifies the MySQL version and the migration-ledger table structure, hashes each migration file with SHA-256, checks stored checksums and statuses, and refuses to continue for an empty pre-existing ledger, unknown, reordered, checksum-mismatched, `running`, or `failed` history. It also refuses to apply a pending migration if tables that migration intends to create already exist without history. A migration failure is recorded as `failed` when possible; an interrupted run remains `running`. Neither state is automatically retried because MySQL DDL may have partially committed. Stop and inspect the schema manually; never delete the ledger row to force a rerun.
+
+The command applies files only from `database/migrations/`. It does not apply the reference seed or activate role grants. Do not run `database/tests/validation.sql` except against an explicitly disposable test database.
+
+### Database role-permission matrix
+
+The reference seed contains the following least-privilege grants, but it does not execute automatically and has not been applied to the database. Review it before explicitly running any seed command. The API resolves roles and grants from MySQL; verified Firebase token claims do not grant roles. Every assigned-scope permission must also be enforced with server-side ownership/assignment filters; a permission name alone is not an access boundary.
+
+| Role | Proposed permissions |
+| --- | --- |
+| Owner | All CRM permissions: `crm.staff.read`, `crm.staff.manage`, `crm.roles.manage`, `crm.customers.read.assigned`, `crm.customers.read.all`, `crm.customers.create`, `crm.customers.update.assigned`, `crm.customers.update.all`, `crm.customers.archive`, `crm.customers.assign`, `crm.customer_links.review`, `crm.enquiries.read.assigned`, `crm.enquiries.read.all`, `crm.enquiries.update.assigned`, `crm.enquiries.update.all`, `crm.enquiries.assign`, `crm.contacts.log.assigned`, `crm.contacts.log.all`, `crm.followups.read.assigned`, `crm.followups.read.all`, `crm.followups.create.assigned`, `crm.followups.create.all`, `crm.followups.update.assigned`, `crm.followups.update.all`, `crm.followups.cancel`, `crm.sales.read.assigned`, `crm.sales.read.all`, `crm.sales.create`, `crm.sales.update.assigned`, `crm.sales.update.all`, `crm.sales.archive`, `catalog.read`, `catalog.manage`, `media.upload`, `media.manage`, `homepage_slides.manage`, `website_settings.manage`, `business_settings.manage`, `reports.read`, and `activity_logs.read`. |
+| Staff | `crm.customers.read.assigned`, `crm.customers.create`, `crm.customers.update.assigned`, `crm.enquiries.read.assigned`, `crm.enquiries.update.assigned`, `crm.contacts.log.assigned`, `crm.followups.read.assigned`, `crm.followups.create.assigned`, `crm.followups.update.assigned`, `crm.followups.cancel`, `crm.sales.read.assigned`, `crm.sales.create`, and `catalog.read`. No access to all-record scopes, staff/role management, assignment, archives, or business settings by default. |
+| Customer | `customer.profile.read.self`, `customer.profile.update.self`, and `customer.history.read.self` only. No CRM permission. |
+
+User-level permission overrides cannot promote a Customer into CRM access or broaden Staff beyond the role allowlist. The server derives the role from the authenticated user record. The current API is unit-tested with mocks; because migrations and seeds remain unapplied and live MySQL integration is unverified, do not point existing CRM pages at it yet.
+
 ## Firebase project setup
 
 1. Use the Firebase project currently configured in `js/firebase-config.js`, or create a new project if that configuration is not for the showroom's Firebase account.

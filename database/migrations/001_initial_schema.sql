@@ -693,7 +693,7 @@ CREATE TABLE sales (
     ON UPDATE RESTRICT ON DELETE RESTRICT,
   CONSTRAINT fk_sales_customer_phone FOREIGN KEY (customer_phone_number_id)
     REFERENCES customer_phone_numbers (id) ON UPDATE RESTRICT ON DELETE RESTRICT,
-  CONSTRAINT fk_sales_recorded_by FOREIGN KEY (recorded_by_user_id) REFERENCES staff_profiles (user_id)
+  CONSTRAINT fk_sales_recorded_by FOREIGN KEY (recorded_by_user_id) REFERENCES users (id)
     ON UPDATE RESTRICT ON DELETE RESTRICT,
   CONSTRAINT fk_sales_archived_by FOREIGN KEY (archived_by_user_id) REFERENCES users (id)
     ON UPDATE RESTRICT ON DELETE RESTRICT,

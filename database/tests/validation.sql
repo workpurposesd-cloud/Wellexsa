@@ -1,8 +1,7 @@
 -- Validation suite for a disposable database that already has the schema and
 -- reference seeds. This script writes temporary fixture rows and rolls them
 -- back. Never run it against production or an unapproved database.
--- Authorization and migration-runner tests are application-level and are
--- listed in the Phase 2 report.
+-- Authorization and migration-runner behavior is tested in server/test/.
 
 DROP PROCEDURE IF EXISTS wellexsa_assert_rejected;
 DROP PROCEDURE IF EXISTS wellexsa_assert_equal;
@@ -45,6 +44,61 @@ BEGIN
 END//
 DELIMITER ;
 
+SELECT COUNT(*) INTO @owner_missing_permissions
+FROM permissions AS p
+JOIN roles AS r ON r.code = 'owner'
+WHERE p.code IN (
+  'crm.staff.read', 'crm.staff.manage', 'crm.roles.manage',
+  'crm.customers.read.assigned', 'crm.customers.read.all', 'crm.customers.create',
+  'crm.customers.update.assigned', 'crm.customers.update.all', 'crm.customers.archive',
+  'crm.customers.assign', 'crm.customer_links.review',
+  'crm.enquiries.read.assigned', 'crm.enquiries.read.all',
+  'crm.enquiries.update.assigned', 'crm.enquiries.update.all', 'crm.enquiries.assign',
+  'crm.contacts.log.assigned', 'crm.contacts.log.all',
+  'crm.followups.read.assigned', 'crm.followups.read.all',
+  'crm.followups.create.assigned', 'crm.followups.create.all',
+  'crm.followups.update.assigned', 'crm.followups.update.all', 'crm.followups.cancel',
+  'crm.sales.read.assigned', 'crm.sales.read.all', 'crm.sales.create',
+  'crm.sales.update.assigned', 'crm.sales.update.all', 'crm.sales.archive',
+  'catalog.read', 'catalog.manage', 'media.upload', 'media.manage',
+  'homepage_slides.manage', 'website_settings.manage', 'business_settings.manage',
+  'reports.read', 'activity_logs.read'
+)
+AND NOT EXISTS (
+  SELECT 1
+  FROM role_permissions AS rp
+  WHERE rp.role_id = r.id AND rp.permission_id = p.id
+);
+CALL wellexsa_assert_equal(
+  @owner_missing_permissions, 0, 'Owner role is missing a required permission.'
+);
+
+SELECT COUNT(*) INTO @staff_forbidden_permissions
+FROM permissions AS p
+JOIN roles AS r ON r.code = 'staff'
+JOIN role_permissions AS rp ON rp.role_id = r.id AND rp.permission_id = p.id
+WHERE p.code IN (
+  'crm.staff.manage', 'crm.roles.manage',
+  'crm.customers.read.all', 'crm.customers.update.all', 'crm.customers.archive', 'crm.customers.assign',
+  'crm.enquiries.read.all', 'crm.enquiries.update.all', 'crm.enquiries.assign',
+  'crm.contacts.log.all', 'crm.followups.read.all', 'crm.followups.create.all',
+  'crm.followups.update.all', 'crm.sales.read.all', 'crm.sales.update.all', 'crm.sales.archive',
+  'catalog.manage', 'media.upload', 'media.manage', 'homepage_slides.manage',
+  'website_settings.manage', 'business_settings.manage', 'reports.read', 'activity_logs.read'
+);
+CALL wellexsa_assert_equal(
+  @staff_forbidden_permissions, 0, 'Staff role contains a permission outside its approved scope.'
+);
+
+SELECT COUNT(*) INTO @customer_crm_permissions
+FROM permissions AS p
+JOIN roles AS r ON r.code = 'customer'
+JOIN role_permissions AS rp ON rp.role_id = r.id AND rp.permission_id = p.id
+WHERE p.code LIKE 'crm.%';
+CALL wellexsa_assert_equal(
+  @customer_crm_permissions, 0, 'Customer role must not receive CRM permissions.'
+);
+
 START TRANSACTION;
 
 SELECT id INTO @staff_role_id FROM roles WHERE code = 'staff';
@@ -61,6 +115,7 @@ INSERT INTO users (firebase_uid, display_name, primary_role_id)
 VALUES (@owner_uid, 'Validation Owner', @owner_role_id);
 SET @owner_user_id = LAST_INSERT_ID();
 
+-- Owners are users but do not need unrelated staff_profiles rows to record sales.
 INSERT INTO customers (name, search_name, source, status)
 VALUES ('Validation Customer', 'validation customer', 'imported', 'new');
 SET @customer_id = LAST_INSERT_ID();
@@ -108,6 +163,13 @@ SET @sale_id = LAST_INSERT_ID();
 INSERT INTO sale_items (
   sale_id, sale_record_type, product_name_snapshot, quantity, unit_price, line_total
 ) VALUES (@sale_id, 'new_showroom', 'Validation Scooter', 1, 100.00, 100.00);
+
+INSERT INTO sales (
+  record_type, customer_id, recorded_by_user_id, sale_date, currency,
+  subtotal, discount_amount, total_amount
+) VALUES (
+  'new_showroom', @customer_id, @owner_user_id, UTC_TIMESTAMP(6), 'INR', 200.00, 0.00, 200.00
+);
 
 INSERT INTO sale_requests (
   requesting_user_id, requesting_firebase_uid, request_id, sale_id

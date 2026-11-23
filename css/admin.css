@@ -889,7 +889,7 @@
   .demo-template-tools select, .demo-template-tools button { width: 100%; }
 }
 
-body.auth-page { background: var(--color-white); }
+body.auth-page { background: #F2F3F4; }
 .auth-header { padding-inline: max(24px, calc((100% - 1440px) / 2)); }
 .auth-layout.auth-layout-centered {
   min-height: calc(100vh - 82px);
@@ -952,7 +952,7 @@ body.auth-page { background: var(--color-white); }
   box-shadow: 0 8px 24px rgba(23,26,31,.07);
 }
 
-.admin-page { min-height: 100vh; color: var(--color-midnight); background: var(--color-pearl); }
+.admin-page { min-height: 100vh; color: var(--color-midnight); background: #F2F3F4; }
 .admin-page .admin-header, .admin-page .dashboard-nav {
   color: var(--color-white);
   background: var(--color-midnight);

@@ -1,0 +1,27 @@
+
+{
+  "name": "wellexsa-motors-api",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "overrides": {
+    "@firebase/database-compat": "2.1.7",
+    "@firebase/database": "1.1.5"
+  },
+  "scripts": {
+    "start": "node --env-file=.env src/server.js",
+    "db:check": "node --env-file=.env scripts/check-database.js",
+    "db:migrate": "node --env-file=.env.migrations scripts/migrate.js",
+    "test": "node --test",
+    "test:integration": "node --env-file=.env.integration --test integration-tests/mysql.integration.js"
+  },
+  "dependencies": {
+    "cors": "2.8.5",
+    "express": "5.1.0",
+    "firebase-admin": "13.10.0",
+    "helmet": "8.1.0",
+    "mysql2": "3.24.6"
+  }
+}

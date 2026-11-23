@@ -1,6 +1,7 @@
--- Reference rows only. Run after the schema migration in a non-production
--- environment after the permission matrix is approved.
--- This seeds roles and permission codes, not role grants or user accounts.
+-- Reference rows only. Apply explicitly after the schema migration.
+-- This does not create user accounts or run automatically at server startup.
+SET NAMES utf8mb4;
+SET time_zone = '+00:00';
 
 INSERT IGNORE INTO roles (code, name, description, is_system) VALUES
   ('owner', 'Owner', 'Business owner role; access remains permission-gated.', TRUE),
@@ -52,5 +53,79 @@ INSERT IGNORE INTO permissions (code, description) VALUES
   ('customer.profile.update.self', 'Update the signed-in customer profile.'),
   ('customer.history.read.self', 'Read history linked to the signed-in customer account.');
 
--- Intentionally no role_permissions rows here. Add only the approved matrix;
--- user overrides must not broaden Staff scope or authorize Customer CRM access.
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles AS r
+JOIN permissions AS p ON p.code IN (
+  'crm.staff.read',
+  'crm.staff.manage',
+  'crm.roles.manage',
+  'crm.customers.read.assigned',
+  'crm.customers.read.all',
+  'crm.customers.create',
+  'crm.customers.update.assigned',
+  'crm.customers.update.all',
+  'crm.customers.archive',
+  'crm.customers.assign',
+  'crm.customer_links.review',
+  'crm.enquiries.read.assigned',
+  'crm.enquiries.read.all',
+  'crm.enquiries.update.assigned',
+  'crm.enquiries.update.all',
+  'crm.enquiries.assign',
+  'crm.contacts.log.assigned',
+  'crm.contacts.log.all',
+  'crm.followups.read.assigned',
+  'crm.followups.read.all',
+  'crm.followups.create.assigned',
+  'crm.followups.create.all',
+  'crm.followups.update.assigned',
+  'crm.followups.update.all',
+  'crm.followups.cancel',
+  'crm.sales.read.assigned',
+  'crm.sales.read.all',
+  'crm.sales.create',
+  'crm.sales.update.assigned',
+  'crm.sales.update.all',
+  'crm.sales.archive',
+  'catalog.read',
+  'catalog.manage',
+  'media.upload',
+  'media.manage',
+  'homepage_slides.manage',
+  'website_settings.manage',
+  'business_settings.manage',
+  'reports.read',
+  'activity_logs.read'
+)
+WHERE r.code = 'owner';
+
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles AS r
+JOIN permissions AS p ON p.code IN (
+  'crm.customers.read.assigned',
+  'crm.customers.create',
+  'crm.customers.update.assigned',
+  'crm.enquiries.read.assigned',
+  'crm.enquiries.update.assigned',
+  'crm.contacts.log.assigned',
+  'crm.followups.read.assigned',
+  'crm.followups.create.assigned',
+  'crm.followups.update.assigned',
+  'crm.followups.cancel',
+  'crm.sales.read.assigned',
+  'crm.sales.create',
+  'catalog.read'
+)
+WHERE r.code = 'staff';
+
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles AS r
+JOIN permissions AS p ON p.code IN (
+  'customer.profile.read.self',
+  'customer.profile.update.self',
+  'customer.history.read.self'
+)
+WHERE r.code = 'customer';

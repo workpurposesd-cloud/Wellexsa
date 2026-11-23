@@ -262,7 +262,7 @@ body { color: #252525; background: #fff; font-family: var(--font); font-size: 14
 .nav-cart { display: inline-flex; align-items: center; gap: 7px; }
 .nav-cart svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
 .menu-toggle { color: var(--ink); }
-.hero { min-height: 610px; padding: 65px max(5.5%, calc((100% - 1440px) / 2)); grid-template-columns: .78fr 1.22fr; gap: 6%; background: var(--canvas); }
+.hero { min-height: 610px; padding: 65px max(5.5%, calc((100% - 1440px) / 2)); grid-template-columns: .78fr 1.22fr; gap: 6%; background: #F2F3F4; }
 .hero-copy { max-width: 510px; padding: 0; }
 .eyebrow { color: #847c6b; font-size: 9px; font-weight: 700; letter-spacing: .19em; }
 .hero h1 { margin: 24px 0 19px; font: 400 clamp(44px, 5.2vw, 70px)/1.07 var(--display); letter-spacing: -.035em; }
@@ -1095,7 +1095,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 
 /* Platinum luxury theme */
-body { color: var(--color-midnight); background: var(--color-white); }
+body { color: var(--color-midnight); background: #F2F3F4; }
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline-color: var(--color-graphite);
 }
@@ -1139,7 +1139,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .text-link, .bike-card-footer a { color: var(--color-graphite); }
 .text-link:hover, .bike-card-footer a:hover { color: var(--color-midnight); }
 
-.hero-slider, .slider-track, .hero-slide { background: var(--color-white); }
+.hero-slider, .slider-track, .hero-slide { background: #F2F3F4; }
 .hero-slide { transition: opacity .7s ease, transform .7s ease, visibility .7s ease; }
 .hero-slide-copy { color: var(--color-graphite); background: var(--color-white); animation: none; }
 .hero-slide-copy .eyebrow, .hero-slide-copy h1 em { color: var(--color-secondary-text); }
@@ -1161,8 +1161,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .account-main h1, .cart-main h1, .checkout-main h1 { color: var(--color-graphite); }
 .section-heading > p, .intro-content p, .contact-lead > p:not(.eyebrow),
 .benefit-item p, .branch p { color: var(--color-secondary-text); }
-.bikes-section, .contact-section { background: var(--color-white); }
-.benefits-section, .intro-strip { background: var(--color-pearl); }
+.bikes-section, .contact-section { background: #F2F3F4; }
+.benefits-section, .intro-strip { background: #E9ECEF; }
 .intro-content h2 span { color: var(--color-graphite); }
 .benefit-item h3, .branch h3 { color: var(--color-graphite); }
 .visit-banner {
@@ -1220,7 +1220,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .copyright, .footer-legal { color: rgba(255,255,255,.78); }
 .footer-legal a:hover { color: var(--color-white); }
 
-.auth-page { background: var(--color-pearl); animation: none; }
+.auth-page { background: #F2F3F4; animation: none; }
 .auth-aside {
   background: var(--color-graphite);
   box-shadow: 0 12px 28px rgba(23,26,31,.12);
@@ -2026,7 +2026,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   --font: "DM Sans", "Segoe UI", sans-serif;
   overflow-x: hidden;
   color: #252a30;
-  background: #faf9f7;
+  background: #F2F3F4;
 }
 .homepage .site-header {
   height: 62px;
@@ -2096,7 +2096,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .homepage .hero-slider,
 .homepage .slider-track,
 .homepage .hero-slide {
-  background: #f4f3f1;
+  background: #F2F3F4;
 }
 .homepage .slider-viewport {
   height: clamp(330px, 28.2vw, 375px);
@@ -2239,7 +2239,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   padding: 0 clamp(28px, 8vw, 110px);
-  background: #f4f3f1;
+  background: #F7F8F9;
 }
 .homepage .feature-item {
   min-height: 24px;
@@ -2266,7 +2266,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .homepage .bikes-section {
   min-height: 0;
   padding: 23px clamp(18px, 2.4vw, 34px) 40px;
-  background: #faf9f7;
+  background: #E9ECEF;
 }
 .homepage .section-heading {
   justify-content: center;
@@ -3720,8 +3720,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr);
   gap: clamp(28px, 4.2vw, 60px);
   background:
-    radial-gradient(ellipse at 82% 18%, rgba(8, 120, 201, .055), transparent 34%),
-    linear-gradient(125deg, #fff 0%, #f8fbff 54%, #f1f7fd 100%);
+    radial-gradient(ellipse at 82% 18%, rgba(233, 236, 239, .055), transparent 34%),
+    linear-gradient(125deg, #F7F8F9 0%, #F2F3F4 54%, #E9ECEF 100%);
 }
 .homepage .contact-eyebrow {
   color: var(--contact-blue);
@@ -3977,7 +3977,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .homepage .benefits-section {
   padding: clamp(48px, 5.5vw, 78px) max(5.5%, calc((100% - 1320px) / 2));
-  background: #f5f7fa;
+  background: #F7F8F9;
 }
 .homepage .benefits-heading {
   max-width: 900px;
@@ -4076,8 +4076,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   padding: clamp(64px, 6.5vw, 92px) max(5.5%, calc((100% - 1440px) / 2));
   border: 0;
   background:
-    radial-gradient(circle at 4% 50%, rgba(8,120,201,.055), transparent 24%),
-    linear-gradient(135deg, #fafbfd 0%, #fff 58%, #f7f9fb 100%);
+    radial-gradient(circle at 4% 50%, rgba(233,236,239,.055), transparent 24%),
+    linear-gradient(135deg, #F7F8F9 0%, #F2F3F4 58%, #E9ECEF 100%);
 }
 .homepage .intro-copy {
   min-width: 0;
@@ -4613,8 +4613,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   border-top: 2px solid #d8eaff;
   border-radius: 28px;
   background:
-    radial-gradient(circle at 5% 12%, rgba(8, 120, 201, .075), transparent 25%),
-    linear-gradient(128deg, #f7faff 0%, #fff 54%, #f2f7fd 100%);
+    radial-gradient(circle at 5% 12%, rgba(233, 236, 239, .075), transparent 25%),
+    linear-gradient(128deg, #F7F8F9 0%, #F2F3F4 54%, #E9ECEF 100%);
   box-shadow: 0 18px 44px rgba(30, 66, 105, .09);
   animation: none;
 }
@@ -4627,7 +4627,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   display: block;
   border: 1px solid rgba(8, 120, 201, .08);
   border-radius: 50%;
-  background: rgba(8, 120, 201, .035);
+  background: rgba(233, 236, 239, .035);
   transform: none;
 }
 .homepage .showroom-promo-main {
