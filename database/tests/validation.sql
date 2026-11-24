@@ -3,6 +3,8 @@
 -- back. Never run it against production or an unapproved database.
 -- Authorization and migration-runner behavior is tested in server/test/.
 
+USE wellexsa_it_20261123_1752;
+
 DROP PROCEDURE IF EXISTS wellexsa_assert_rejected;
 DROP PROCEDURE IF EXISTS wellexsa_assert_equal;
 DELIMITER //
@@ -14,6 +16,7 @@ CREATE PROCEDURE wellexsa_assert_rejected(
 BEGIN
   DECLARE statement_failed BOOLEAN DEFAULT FALSE;
   DECLARE actual_errno INT DEFAULT 0;
+  DECLARE diagnostic_message VARCHAR(128) DEFAULT '';
   SET @wellexsa_validation_sql = p_sql;
   PREPARE wellexsa_validation_statement FROM @wellexsa_validation_sql;
   BEGIN
@@ -29,7 +32,13 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = p_label;
   END IF;
   IF actual_errno <> p_expected_errno THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Statement failed for an unexpected reason.';
+    SET diagnostic_message = CONCAT(
+      'Unexpected MySQL error. expected=',
+      p_expected_errno,
+      ' actual=',
+      actual_errno
+    );
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = diagnostic_message;
   END IF;
 END//
 CREATE PROCEDURE wellexsa_assert_equal(
@@ -215,7 +224,7 @@ CALL wellexsa_assert_rejected(
     'INSERT INTO customer_notes (customer_id, note) VALUES (18446744073709551615, ''bad foreign key'')'
   ),
   'Foreign-key integrity was not enforced.',
-  1452
+  1216
 );
 
 CALL wellexsa_assert_rejected(
@@ -224,7 +233,7 @@ CALL wellexsa_assert_rejected(
     @staff_user_id, ', 65535, ''grant'', ', @owner_user_id, ')'
   ),
   'Unknown permission was accepted.',
-  1452
+  1216
 );
 
 CALL wellexsa_assert_rejected(
@@ -258,7 +267,7 @@ CALL wellexsa_assert_rejected(
 CALL wellexsa_assert_rejected(
   CONCAT('DELETE FROM customers WHERE id = ', @customer_id),
   'Deletion of a customer with historical records was accepted.',
-  1451
+  1217
 );
 
 -- A single primary role is represented by users.primary_role_id; no user_roles

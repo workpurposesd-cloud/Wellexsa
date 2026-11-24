@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Read-only local environment configuration check",
+			"type": "shell",
+			"command": "C:\\PROGRA~1\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const fs=require(\"node:fs\");const path=\"server/.env\";if(!fs.existsSync(path)){console.log(\"FIREBASE_PROJECT_ID: MISSING\");console.log(\"PORT: MISSING\");console.log(\"CORS_ORIGINS: MISSING\");process.exit(0)}const values={};for(const line of fs.readFileSync(path,\"utf8\").split(/\\r?\\n/)){const match=/^(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);if(match)values[match[1]]=match[2].trim()}console.log(\"FIREBASE_PROJECT_ID: \"+(values.FIREBASE_PROJECT_ID=== \"wellexsa\"?\"PASS\":\"FAIL\"));console.log(\"PORT: \"+(values.PORT=== \"3001\"?\"PASS\":\"FAIL\"));const origins=(values.CORS_ORIGINS||\"\").split(\",\").map(v=>v.trim());console.log(\"CORS_ORIGINS: \"+(origins.includes(\"http://localhost:5500\")&&origins.includes(\"http://127.0.0.1:5500\")?\"PASS\":\"FAIL\"));"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

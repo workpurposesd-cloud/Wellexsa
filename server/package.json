@@ -12,6 +12,7 @@
   },
   "scripts": {
     "start": "node --env-file=.env src/server.js",
+    "start:emulator": "node --env-file=.env.emulator src/server.js",
     "db:check": "node --env-file=.env scripts/check-database.js",
     "db:migrate": "node --env-file=.env.migrations scripts/migrate.js",
     "test": "node --test",

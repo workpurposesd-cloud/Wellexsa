@@ -4,4 +4,5 @@ node_modules/
 !.env.example
 !.env.migrations.example
 !.env.integration.example
+!.env.emulator.example
 npm-debug.log*

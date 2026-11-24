@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assertIntegrationDatabaseConfig,
+  DISPOSABLE_MYSQL_DATABASE_NAME,
   loadDatabaseConfig,
   loadMigrationDatabaseConfig
 } from "../src/config/database.js";
@@ -37,20 +39,160 @@ test("migration configuration requires distinct migration credentials", () => {
   assert.deepEqual(loadMigrationDatabaseConfig({
     MYSQL_HOST: "127.0.0.1",
     MYSQL_PORT: "3306",
-    MYSQL_DATABASE: "wellexsa",
-    MYSQL_MIGRATION_USER: "wellexsa_migrator",
+    MYSQL_DATABASE: DISPOSABLE_MYSQL_DATABASE_NAME,
+    MYSQL_USER: "wellexsa_it_app",
+    MYSQL_MIGRATION_USER: "wellexsa_it_migrator",
     MYSQL_MIGRATION_PASSWORD: "migration-test-secret"
   }), {
     host: "127.0.0.1",
     port: 3306,
-    database: "wellexsa",
-    user: "wellexsa_migrator",
+    database: DISPOSABLE_MYSQL_DATABASE_NAME,
+    user: "wellexsa_it_migrator",
     password: "migration-test-secret",
     connectTimeout: 10000,
     timezone: "Z"
   });
   assert.throws(() => loadMigrationDatabaseConfig(validEnvironment), /MYSQL_MIGRATION_USER/);
 });
+
+test("migration configuration rejects identical application and migration usernames", () => {
+  assert.throws(
+    () => loadMigrationDatabaseConfig({
+      MYSQL_HOST: "127.0.0.1",
+      MYSQL_PORT: "3306",
+      MYSQL_DATABASE: DISPOSABLE_MYSQL_DATABASE_NAME,
+      MYSQL_USER: "wellexsa_it_migrator",
+      MYSQL_MIGRATION_USER: "wellexsa_it_migrator",
+      MYSQL_MIGRATION_PASSWORD: "migration-test-secret"
+    }),
+    /must be different from MYSQL_USER/
+  );
+});
+
+for (const username of [
+  "root",
+  "wellexsa_app",
+  "wellexsa_it_app",
+  "wellexsa_it_other",
+  "wellexsa_migrator"
+]) {
+  test(`migration configuration rejects username ${username}`, () => {
+    assert.throws(
+      () => loadMigrationDatabaseConfig({
+        MYSQL_HOST: "127.0.0.1",
+        MYSQL_PORT: "3306",
+        MYSQL_DATABASE: DISPOSABLE_MYSQL_DATABASE_NAME,
+        MYSQL_USER: "wellexsa_it_app",
+        MYSQL_MIGRATION_USER: username,
+        MYSQL_MIGRATION_PASSWORD: "migration-test-secret"
+      }),
+      /MYSQL_MIGRATION_USER must be exactly wellexsa_it_migrator/
+    );
+  });
+}
+
+test("integration database guard rejects another database", () => {
+  assert.throws(
+    () => assertIntegrationDatabaseConfig({
+      host: "127.0.0.1",
+      port: 3306,
+      database: "wellexsa",
+      user: "wellexsa_it_app"
+    }, {
+      WELLEXSA_INTEGRATION_TESTS: "YES",
+      NODE_ENV: "test",
+      WELLEXSA_TEST_DATABASE: "wellexsa"
+    }),
+    /MYSQL_DATABASE must be exactly/
+  );
+});
+
+test("integration database guard rejects another host", () => {
+  assert.throws(
+    () => assertIntegrationDatabaseConfig({
+      host: "db.example.invalid",
+      port: 3306,
+      database: DISPOSABLE_MYSQL_DATABASE_NAME,
+      user: "wellexsa_it_app"
+    }, {
+      WELLEXSA_INTEGRATION_TESTS: "YES",
+      NODE_ENV: "test",
+      WELLEXSA_TEST_DATABASE: DISPOSABLE_MYSQL_DATABASE_NAME
+    }),
+    /only to local MySQL/
+  );
+});
+
+test("integration database guard accepts port 3306", () => {
+  assert.doesNotThrow(
+    () => assertIntegrationDatabaseConfig({
+      host: "127.0.0.1",
+      port: 3306,
+      database: DISPOSABLE_MYSQL_DATABASE_NAME,
+      user: "wellexsa_it_app"
+    }, {
+      WELLEXSA_INTEGRATION_TESTS: "YES",
+      NODE_ENV: "test",
+      WELLEXSA_TEST_DATABASE: DISPOSABLE_MYSQL_DATABASE_NAME
+    })
+  );
+});
+
+for (const port of [undefined, 3307, 33060, "3306"]) {
+  test(`integration database guard rejects port ${String(port)}`, () => {
+    assert.throws(
+      () => assertIntegrationDatabaseConfig({
+        host: "127.0.0.1",
+        port,
+        database: DISPOSABLE_MYSQL_DATABASE_NAME,
+        user: "wellexsa_it_app"
+      }, {
+        WELLEXSA_INTEGRATION_TESTS: "YES",
+        NODE_ENV: "test",
+        WELLEXSA_TEST_DATABASE: DISPOSABLE_MYSQL_DATABASE_NAME
+      }),
+      /MYSQL_PORT=3306/
+    );
+  });
+}
+
+test("integration database guard accepts the exact application username", () => {
+  assert.doesNotThrow(
+    () => assertIntegrationDatabaseConfig({
+      host: "127.0.0.1",
+      port: 3306,
+      database: DISPOSABLE_MYSQL_DATABASE_NAME,
+      user: "wellexsa_it_app"
+    }, {
+      WELLEXSA_INTEGRATION_TESTS: "YES",
+      NODE_ENV: "test",
+      WELLEXSA_TEST_DATABASE: DISPOSABLE_MYSQL_DATABASE_NAME
+    })
+  );
+});
+
+for (const username of [
+  "wellexsa_it_migrator",
+  "wellexsa_app",
+  "wellexsa_it_other",
+  "root"
+]) {
+  test(`integration database guard rejects username ${username}`, () => {
+    assert.throws(
+      () => assertIntegrationDatabaseConfig({
+        host: "127.0.0.1",
+        port: 3306,
+        database: DISPOSABLE_MYSQL_DATABASE_NAME,
+        user: username
+      }, {
+        WELLEXSA_INTEGRATION_TESTS: "YES",
+        NODE_ENV: "test",
+        WELLEXSA_TEST_DATABASE: DISPOSABLE_MYSQL_DATABASE_NAME
+      }),
+      /dedicated integration app account/
+    );
+  });
+}
 
 for (const setting of [
   "MYSQL_HOST",

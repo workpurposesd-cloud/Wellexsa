@@ -3,7 +3,10 @@ import { once } from "node:events";
 import { randomUUID } from "node:crypto";
 import test, { after, before } from "node:test";
 import { createApp } from "../src/app.js";
-import { loadDatabaseConfig } from "../src/config/database.js";
+import {
+  assertIntegrationDatabaseConfig,
+  loadDatabaseConfig
+} from "../src/config/database.js";
 import { loadEnv } from "../src/config/env.js";
 import { createPoolManager } from "../src/database/pool.js";
 import { resolvePrincipal } from "../src/middleware/authorize.js";
@@ -11,7 +14,6 @@ import { createVerifyFirebaseToken } from "../src/middleware/verifyFirebaseToken
 import { loadMigrations, validateMigrationHistory } from "../src/database/migration-runner.js";
 import { fileURLToPath } from "node:url";
 
-const TEST_DATABASE_PATTERN = /^wellexsa_it_[a-z0-9_]{1,48}$/;
 const INTEGRATION_TOKEN = "wellexsa-local-integration-token";
 
 assert.equal(
@@ -21,13 +23,7 @@ assert.equal(
 );
 
 const databaseConfig = loadDatabaseConfig();
-assert.equal(process.env.NODE_ENV, "test", "Integration tests require NODE_ENV=test.");
-assert.equal(databaseConfig.host, "127.0.0.1", "Integration tests may connect only to local MySQL.");
-assert.match(databaseConfig.database, TEST_DATABASE_PATTERN, "MYSQL_DATABASE must use the wellexsa_it_ prefix.");
-assert.equal(process.env.WELLEXSA_TEST_DATABASE, databaseConfig.database);
-assert.match(databaseConfig.user, /^wellexsa_it_[a-z0-9_]{1,32}$/, "Use a dedicated integration app account.");
-assert.notEqual(databaseConfig.database, "wellexsa");
-assert.notEqual(databaseConfig.user, "wellexsa_app");
+assertIntegrationDatabaseConfig(databaseConfig, process.env);
 
 const poolManager = createPoolManager({ configLoader: () => databaseConfig });
 const ownerUid = `integration-owner-${randomUUID()}`;
@@ -95,13 +91,16 @@ after(async () => {
       server.closeAllConnections();
     });
   }
-  if (ownerInserted) {
-    await poolManager.getPool().execute(
-      "DELETE FROM users WHERE firebase_uid = ?",
-      [ownerUid]
-    );
+  try {
+    if (ownerInserted) {
+      await poolManager.getPool().execute(
+        "DELETE FROM users WHERE firebase_uid = ?",
+        [ownerUid]
+      );
+    }
+  } finally {
+    await poolManager.close();
   }
-  await poolManager.close();
 });
 
 test("API health endpoint responds without database or Firebase access", async () => {

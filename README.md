@@ -64,12 +64,12 @@ It runs only `SELECT VERSION()` and `SELECT 1`, reports the server version, and 
 
 ### Explicit local schema migration
 
-The migration runner accepts MySQL 8.0.16 or later in the 8.0 series (including MySQL 8.0.42). Have the database administrator create a separate local migration account with only the privileges needed to create this schema and read/write the migration ledger (`CREATE`, `REFERENCES`, `SELECT`, `INSERT`, and `UPDATE` on `wellexsa.*`). For the local database, an administrator can run:
+The migration runner accepts MySQL 8.0.16 or later in the 8.0 series (including MySQL 8.0.42), and is restricted to the disposable database `wellexsa_it_20261123_1752`. Have the database administrator create a separate local migration account with only the privileges needed to create this schema and read/write the migration ledger (`CREATE`, `REFERENCES`, `SELECT`, `INSERT`, and `UPDATE` on that database). For the disposable database, an administrator can run:
 
 ```sql
-CREATE USER 'wellexsa_migrator'@'127.0.0.1' IDENTIFIED BY RANDOM PASSWORD;
-GRANT CREATE, REFERENCES, SELECT, INSERT, UPDATE ON wellexsa.* TO 'wellexsa_migrator'@'127.0.0.1';
-SHOW GRANTS FOR 'wellexsa_migrator'@'127.0.0.1';
+CREATE USER 'wellexsa_it_migrator'@'127.0.0.1' IDENTIFIED BY RANDOM PASSWORD;
+GRANT CREATE, REFERENCES, SELECT, INSERT, UPDATE ON wellexsa_it_20261123_1752.* TO 'wellexsa_it_migrator'@'127.0.0.1';
+SHOW GRANTS FOR 'wellexsa_it_migrator'@'127.0.0.1';
 ```
 
 Save MySQL's generated password directly into the ignored `.env.migrations` file. Do not use the administrator account or the application account for migrations. Review any extra privilege needed before adding it.
@@ -82,10 +82,10 @@ copy .env.migrations.example .env.migrations
 notepad .env.migrations
 ```
 
-Set the migration account password in `.env.migrations` locally and keep that file out of source control. The migration runner uses the `MYSQL_MIGRATION_USER` and `MYSQL_MIGRATION_PASSWORD` variables, not the application credentials. Then explicitly confirm the exact database name:
+`npm run db:migrate` runs Node with `--env-file=.env.migrations` from the `server/` directory. Set the migration account password in that ignored file locally; never use the application account or put real credentials in source files. The runner reads `MYSQL_MIGRATION_USER` and `MYSQL_MIGRATION_PASSWORD`, and rejects any database other than `wellexsa_it_20261123_1752` before opening a connection. Confirm that exact target:
 
 ```cmd
-npm run db:migrate -- --confirm-database wellexsa
+npm run db:migrate -- --confirm-database wellexsa_it_20261123_1752
 ```
 
 The runner verifies the MySQL version and the migration-ledger table structure, hashes each migration file with SHA-256, checks stored checksums and statuses, and refuses to continue for an empty pre-existing ledger, unknown, reordered, checksum-mismatched, `running`, or `failed` history. It also refuses to apply a pending migration if tables that migration intends to create already exist without history. A migration failure is recorded as `failed` when possible; an interrupted run remains `running`. Neither state is automatically retried because MySQL DDL may have partially committed. Stop and inspect the schema manually; never delete the ledger row to force a rerun.

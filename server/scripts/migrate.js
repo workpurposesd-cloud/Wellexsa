@@ -1,22 +1,24 @@
 import { createConnection } from "mysql2/promise";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadMigrationDatabaseConfig } from "../src/config/database.js";
+import {
+  assertDisposableDatabaseName,
+  loadMigrationDatabaseConfig
+} from "../src/config/database.js";
 import { loadMigrations, runMigrations } from "../src/database/migration-runner.js";
 
-function getConfirmedDatabase(args, configuredDatabase) {
-  const confirmationIndex = args.indexOf("--confirm-database");
-  const confirmedDatabase = args[confirmationIndex + 1];
+export function getConfirmedDatabase(args, configuredDatabase) {
+  assertDisposableDatabaseName(configuredDatabase);
   if (
-    confirmationIndex < 0 ||
-    !confirmedDatabase ||
     args.length !== 2 ||
-    confirmedDatabase !== configuredDatabase
+    args[0] !== "--confirm-database" ||
+    args[1] !== configuredDatabase
   ) {
     throw new Error(
-      "Refusing to migrate. Supply --confirm-database followed by the exact MYSQL_DATABASE value."
+      "Refusing to migrate. Supply --confirm-database followed by the exact disposable database name."
     );
   }
+  return configuredDatabase;
 }
 
 function assertSupportedMySqlVersion(version) {
@@ -26,14 +28,26 @@ function assertSupportedMySqlVersion(version) {
   }
 }
 
-async function main() {
-  const config = loadMigrationDatabaseConfig();
-  getConfirmedDatabase(process.argv.slice(2), config.database);
+export async function runMigrationCommand({
+  args = process.argv.slice(2),
+  configLoader = loadMigrationDatabaseConfig,
+  migrationLoader = loadMigrations,
+  connectionFactory = createConnection,
+  environment = process.env
+} = {}) {
+  const config = configLoader();
+  getConfirmedDatabase(args, config.database);
+  if (config.port !== 3306) {
+    throw new Error("MYSQL_PORT must be 3306 for the disposable migration database.");
+  }
+  if (config.host !== "127.0.0.1") {
+    throw new Error("MYSQL_HOST must be 127.0.0.1 for the disposable migration database.");
+  }
 
   const scriptDirectory = dirname(fileURLToPath(import.meta.url));
   const migrationDirectory = resolve(scriptDirectory, "..", "..", "database", "migrations");
-  const migrations = await loadMigrations(migrationDirectory);
-  const connection = await createConnection({
+  const migrations = await migrationLoader(migrationDirectory);
+  const connection = await connectionFactory({
     ...config,
     charset: "UTF8MB4_GENERAL_CI",
     multipleStatements: true,
@@ -49,7 +63,7 @@ async function main() {
     assertSupportedMySqlVersion(version);
     await connection.query("SET time_zone = '+00:00'");
 
-    const operator = (process.env.USERNAME || process.env.USER || "").trim();
+    const operator = (environment.USERNAME || environment.USER || "").trim();
     const appliedBy = (operator || "wellexsa-migration-runner").slice(0, 128);
     const result = await runMigrations(connection, migrations, { appliedBy });
     console.log(`Migration check complete. ${result.appliedCount} migration(s) are applied.`);
@@ -58,7 +72,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : "Migration runner failed.");
-  process.exitCode = 1;
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  runMigrationCommand().catch((error) => {
+    console.error(error instanceof Error ? error.message : "Migration runner failed.");
+    process.exitCode = 1;
+  });
+}

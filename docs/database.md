@@ -8,13 +8,15 @@ The schema is MySQL 8.0.16+ compatible by declaration and is targeted at MySQL 8
 
 ## Explicit migration process
 
+The `db:migrate` package script runs Node with `--env-file=.env.migrations` from the `server/` directory. That ignored file supplies `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_MIGRATION_USER`, and `MYSQL_MIGRATION_PASSWORD`; migration credentials are separate from the application `.env` credentials. Do not put real passwords in the example file or source control. The runner requires `MYSQL_HOST=127.0.0.1` and rejects every database except `wellexsa_it_20261123_1752` before opening a MySQL connection.
+
 From Windows CMD:
 
 ```cmd
 cd /d C:\Users\COMP\Desktop\Wellexsa\server
 copy .env.migrations.example .env.migrations
 notepad .env.migrations
-npm run db:migrate -- --confirm-database wellexsa
+npm run db:migrate -- --confirm-database wellexsa_it_20261123_1752
 ```
 
 The runner only reads `database/migrations/`; it does not apply seeds. It checks the server version, schema-migrations table shape, consecutive history, and SHA-256 checksums. A `running`, `failed`, empty pre-existing ledger, checksum mismatch, or untracked table blocks automatic continuation. MySQL DDL may commit statement-by-statement: inspect the target schema manually after a blocked/failed run. Do not delete a migration history row to force a rerun.
@@ -23,9 +25,9 @@ The runner has not been integration-tested against MySQL. Do not run it until th
 
 ## Disposable MySQL integration test preparation
 
-The integration suite is opt-in and separate from `npm test`. It accepts only MySQL on `127.0.0.1`, a database named `wellexsa_it_<unique-lowercase-suffix>`, an explicit matching `WELLEXSA_TEST_DATABASE`, and a dedicated `wellexsa_it_*` application account. It checks the selected database and complete migration checksums before inserting one temporary Owner fixture; it removes that fixture afterward. It injects a local token verifier and does not contact Firebase. It does not create/drop databases, run migrations, or apply seeds.
+The integration suite is opt-in and separate from `npm test`. It accepts only MySQL on `127.0.0.1`, the exact database `wellexsa_it_20261123_1752`, a matching `WELLEXSA_TEST_DATABASE`, and a dedicated `wellexsa_it_*` application account. It checks the selected database and complete migration checksums before inserting one temporary Owner fixture; it removes that fixture afterward. It injects a local token verifier and does not contact Firebase. It does not create/drop databases, run migrations, or apply seeds.
 
-Use a unique disposable schema name for each run, for example `wellexsa_it_20261123_1752`. Never substitute `wellexsa`, reuse the application/production account, or point the test file at a remote server. The migration runner itself accepts any database name, so the exact `--confirm-database` value and the integration suite's additional guards are both important.
+Use only `wellexsa_it_20261123_1752` for these migration and integration-test commands. The migration runner and integration test reject `wellexsa` and every other database name; they also require the exact matching `--confirm-database` or `WELLEXSA_TEST_DATABASE` value.
 
 After explicit approval, an administrator can create the isolated schema and two separate local accounts. MySQL prints the generated passwords; store them only in the ignored local `.env.integration` file and a password manager. Do not paste them into chat or source control.
 
@@ -40,7 +42,7 @@ SHOW GRANTS FOR 'wellexsa_it_app'@'127.0.0.1';
 SHOW GRANTS FOR 'wellexsa_it_migrator'@'127.0.0.1';
 ```
 
-In Command Prompt, copy the ignored integration environment example, replace the database name in both database fields with the exact unique name above, enter the generated passwords locally, and leave the integration opt-in disabled until the database, schema, and seed are approved:
+In Command Prompt, copy the ignored integration environment example, enter the generated passwords locally, and leave the integration opt-in disabled until the database, schema, and seed are approved:
 
 ```cmd
 cd /d C:\Users\COMP\Desktop\Wellexsa\server
@@ -68,7 +70,7 @@ Then run the separate HTTP/API smoke suite:
 npm run test:integration
 ```
 
-After approval, set `WELLEXSA_INTEGRATION_TESTS=YES` in `.env.integration`, then run this command. It uses the real local MySQL pool for schema/seed checks and API reads, creates and removes a unique test Owner profile, rejects non-loopback or non-`wellexsa_it_*` targets before connecting, and uses a fake local bearer-token verifier rather than Firebase. `npm test` remains the mock-based unit suite and does not need `.env.integration`.
+After approval, set `WELLEXSA_INTEGRATION_TESTS=YES` in `.env.integration`, then run this command. It uses the real local MySQL pool for schema/seed checks and API reads, creates and removes a temporary test Owner profile, rejects non-loopback or non-exact-database targets before connecting, and uses a fake local bearer-token verifier rather than Firebase. `npm test` remains the mock-based unit suite and does not need `.env.integration`.
 
 No commands in this section have been executed. Keep the disposable database until test results are reviewed; any eventual schema/user cleanup is a separate destructive operation and should be approved separately.
 

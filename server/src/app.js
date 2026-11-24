@@ -14,6 +14,21 @@ import { createSalesRouter } from "./routes/sales.js";
 import { createReportsRouter } from "./routes/reports.js";
 import { createWebsiteRouter } from "./routes/website.js";
 
+const SAFE_APPLICATION_ERROR_CODES = new Set([
+  "UNAUTHENTICATED",
+  "INVALID_REQUEST",
+  "PROFILE_REQUIRED",
+  "PROFILE_SYNC_UNAVAILABLE",
+  "PROFILE_CONFLICT",
+  "ACCOUNT_INACTIVE",
+  "EMAIL_NOT_VERIFIED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "RATE_LIMITED",
+  "PHONE_CRYPTO_CONFIG",
+  "INVALID_PHONE"
+]);
+
 export function createApp(config = loadEnv(), dependencies = {}) {
   const app = express();
 
@@ -57,18 +72,23 @@ export function createApp(config = loadEnv(), dependencies = {}) {
     }
 
     const statusCode = Number.isInteger(error.statusCode) &&
-      error.statusCode >= 400 && error.statusCode < 500
+      error.statusCode >= 400 && error.statusCode <= 599
       ? error.statusCode
       : 500;
 
-    if (statusCode === 500) {
+    if (statusCode >= 500 && statusCode <= 599) {
       console.error("Unhandled API error", { type: error.name || "Error" });
     }
 
+    const applicationCode = typeof error.code === "string" &&
+      SAFE_APPLICATION_ERROR_CODES.has(error.code)
+      ? error.code
+      : "REQUEST_ERROR";
+
     response.status(statusCode).json({
       error: {
-        code: statusCode === 500 ? "INTERNAL_SERVER_ERROR" : "REQUEST_ERROR",
-        message: statusCode === 500 ? "Internal server error." : "The request could not be processed."
+        code: statusCode >= 500 && statusCode <= 599 ? "INTERNAL_SERVER_ERROR" : applicationCode,
+        message: statusCode >= 500 && statusCode <= 599 ? "Internal server error." : "The request could not be processed."
       }
     });
   });

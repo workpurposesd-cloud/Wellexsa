@@ -4081,6 +4081,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 .homepage .intro-copy {
   min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
 }
 .homepage .intro-copy > .eyebrow {
   margin: 0 0 16px;
@@ -4143,6 +4145,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   min-width: 0;
   min-height: 0;
   position: relative;
+  grid-column: 1;
+  grid-row: 1;
   overflow: hidden;
   isolation: isolate;
   border: 1px solid #454b50;
@@ -4202,6 +4206,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .homepage .intro-strip {
     grid-template-columns: 1fr;
     gap: 28px;
+  }
+  .homepage .intro-showroom {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .homepage .intro-copy {
+    grid-column: 1;
+    grid-row: 2;
   }
   .homepage .intro-showroom {
     min-height: 0;
@@ -4943,6 +4955,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     border-radius: 22px;
   }
   .homepage .showroom-promo-main { gap: 24px; }
+  .homepage .showroom-promo-content {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .homepage .showroom-promo-image {
+    grid-column: 1;
+    grid-row: 2;
+  }
   .homepage .showroom-promo-image {
     aspect-ratio: 1.35;
     border-radius: 18px;
