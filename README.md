@@ -5,17 +5,17 @@ A responsive electric-scooter showroom with customer accounts, live Firestore li
 ## Brand and design assets
 
 - The supplied WELLEXSA emblem and wordmark PNG is used as the logo throughout the website without recreating the artwork. Its white artwork is placed against a charcoal background for legibility.
-- The homepage slider uses eight local fallback slides; enabled, published Firestore slides override them. The active demo previews use `assets/images/image1.png` for Tunwal Alfa Pro and `assets/images/image2.jfif` through `image8.jfif` for Tunwal Mini Lithino, Tunwal Sport 63, YO Bykes YO Smart+, YO Bykes YO Smart, YO Bykes YO DX, WELLEXSA Double Light and EoX Electric OKO, respectively. The image9.jfif and image10.jfif files are retained but are not used in the active demo catalogue.
+- The original image assets are retained under `assets/images/` without renaming or overwriting them. Their original model associations could not be verified from local project files, so they are not used to invent catalogue entries. Published Firestore homepage slides may be shown when available; the site no longer substitutes local demo slides.
 - `privacy.html` and `terms.html` are starter pages, clearly marked for showroom business review. Confirm the final legal, data-retention, cancellation, delivery and warranty terms before launch.
 
 ## What is included
 
 - Public showroom with live, published-only listings, scooter detail pages and showroom contact links.
 - Enabled, published homepage slides remain visible to customers. Administrator slide management is temporarily unavailable.
-- Firebase customer signup, sign-in, account page and sign-out.
+- Customer sign-in, sign-up and account pages remain visible, but their authentication and account functions are disabled. Existing Firebase accounts and records are not changed.
 - Administrator sign-in, dashboard and provisioning are temporarily disabled. Existing admin accounts and records are not deleted.
 - A separate, private Owner/Staff CRM is implemented under `crm/`; it uses server-checked `crmAccess` records and does not restore legacy administrator claims or admin pages. It is not available on the live site until its Functions, Firestore rules, indexes and hosting assets are deliberately deployed.
-- Existing published bikes and customer purchases remain available; privileged inventory changes are temporarily unavailable.
+- Published bikes remain available from Firebase when verified listings exist; otherwise the catalogue shows that information is pending. Existing customer purchase records are retained, and privileged inventory changes remain unavailable.
 - The scooter catalogue displays published product details, prices, specifications and stock. Customers contact the showroom through product enquiries; the website does not offer online checkout.
 - Existing customer order history remains available as read-only history. New orders are not created through the website.
 - The **SAVE & PUBLISH BIKE** workflow requires a main image, price, name and the five required specifications. Optional fields do not block publishing.
@@ -29,11 +29,17 @@ A responsive electric-scooter showroom with customer accounts, live Firestore li
 - [Firebase CRM migration plan](./docs/firebase-crm-migration.md)
 - [Deployment readiness checklist](./docs/deployment-checklist.md)
 
+## Cloudflare Pages public build
+
+The public site is assembled by an explicit allowlist into `cloudflare-public/`. The build includes the approved customer pages, Staff CRM pages, CSS, JavaScript and existing image assets; it does not copy the backend, database files, tests, environment files, development settings or Firebase rules.
+
+Run `npm run build:public` to rebuild that folder. Configure Cloudflare Pages to use `npm run build:public` as the build command and `cloudflare-public` as the output directory. Review the generated files before connecting a preview or production deployment. The exact Cloudflare hostname must be added to the Firebase callable CORS allowlist and Firebase Authentication authorized domains before customer enquiries or Staff sign-in can work there. No Cloudflare or production settings have been changed by this build setup.
+
 ## Local Express and MySQL backend
 
 The implemented Express server provides Firebase ID-token verification, transaction-backed customer, staff, enquiry, follow-up and sale operations, catalogue and website-content APIs, Owner reporting/audit APIs, versioned phone encryption for public enquiries, and MySQL-backed role/permission checks. See [docs/api.md](./docs/api.md) for the routes and their current limits. The routes have automated tests, but have not been integration-tested against the live MySQL schema.
 
-The existing Firebase CRM frontend has **not yet been migrated** to the Express/MySQL API. The pages under `crm/` and the existing Firebase Functions/Firestore CRM operations remain in place and unchanged. Deploying or starting the Express backend does not switch the live CRM from Firebase to MySQL. Cutover requires separately approving the schema and seed, verifying the API against a disposable database, and updating the CRM integration. MySQL migrations and reference seeds are never run automatically at startup.
+The CRM remains a transitional hybrid: Firebase/Firestore is used for customer records and Staff CRM operations, while the Staff dashboard can read legacy MySQL enquiries through the separately configured Express API. New public website enquiries are saved through the Firebase callable and are not duplicated into MySQL. Existing MySQL records are not deleted or migrated. Do not treat the databases as synchronized; a full MySQL cutover requires separate approval, a verified disposable-database migration and an explicit integration plan.
 
 The server reads local settings from `server/.env`; this file is ignored by Git. From Command Prompt, copy the example and edit only the copy:
 
@@ -148,9 +154,9 @@ The admin pages, sign-in, password-change flow, privileged Functions, Firestore/
 
 The CRM is separate from the disabled legacy admin system. It uses dedicated Owner/Staff pages at `crm/owner-login.html` and `crm/staff-login.html`; access is authorized by server-written `crmAccess/{uid}` records, checked by callable Functions and Firestore Rules. Customer-facing pages do not link to the CRM. The showroom catalogue uses Enquire Now; purchases are arranged directly with the showroom.
 
-Website enquiries are submitted through the `crmSubmitBikeEnquiry` callable Function. The server validates the name and Indian mobile number, uses the existing hashed `crmPhoneIndex` in a transaction to link an existing customer or create one customer record, and stores each enquiry separately with a server timestamp and `new` status. Firestore Rules deny browser writes to both CRM collections and allow enquiry reads only to CRM users with `customers:view`; the Owner/Staff Enquiries tab displays the contact, bike, timestamp and new/existing match. The WhatsApp draft is offered only after the server confirms the save and requires the customer to send it manually.
+Website enquiries are submitted through the `crmSubmitBikeEnquiry` callable Function. The server verifies that the selected scooter is still published, validates the customer name, Indian mobile number and enquiry message, uses the existing hashed `crmPhoneIndex` in a transaction to link an existing customer or create one customer record, and stores each enquiry separately with a server timestamp and `new` status. Firestore Rules deny browser writes to CRM collections and limit Staff reads to assigned records; unresolved registration matches are Owner-only. Reassigning a customer also updates linked enquiry and purchase assignments transactionally. The WhatsApp draft is offered only after the server confirms the save and requires the customer to send it manually.
 
-The callable allows browser requests only from `http://localhost:5500` and `https://stunning-squirrel-b7fad7.netlify.app`. Run `npm run test:enquiry-cors` to check both OPTIONS preflights, a rejected origin and an actual callable-formatted submission against the local Functions and Firestore emulators (requires the Firebase CLI).
+The callable currently allows browser requests only from the documented local origins and the former Netlify preview domain. The chosen Cloudflare Pages hostname is not yet known or configured; add that exact origin before deployment. Run `npm run test:enquiry-cors` to check the current CORS policy and a callable-formatted submission against the local Functions and Firestore emulators (requires the Firebase CLI). Run `npm run test:crm-assignment` to exercise Staff assignment rules and callable authorization against local emulators only.
 
 ### Functions parameter: `ADMIN_AUTH_WEB_API_KEY`
 
@@ -178,7 +184,7 @@ firebase deploy --only functions,firestore:rules,firestore:indexes,hosting
 
 The root `firebase-admin` dependency is required only by trusted local provisioning and migration scripts; it must never be bundled into the browser.
 
-The reported production site is hosted on Netlify. Deploy the Firebase Functions, rules and indexes with the Firebase CLI as above, and deploy the static site through the existing Netlify workflow. The Firebase Hosting command later in this README is only for projects that actually use Firebase Hosting. `_redirects` denies public requests to server source, provisioning scripts, Firebase rules/configuration and package metadata if the Netlify publish directory includes the repository root.
+Cloudflare Pages is the selected host for the public website. Use the curated `cloudflare-public/` output described above; do not point Pages at the repository root. Firebase Functions, Firestore rules and indexes are separate backend components and must be reviewed and deployed independently with approval. The repository does not include verified production Cloudflare Pages or Firebase CORS/auth-domain settings.
 
 ### Provision the first Owner
 
@@ -264,7 +270,7 @@ order, enabled, active, status: "published" | "draft", createdAt, updatedAt
 
 The public query filters on `status == "published"` and `enabled == true`, ordered by `order`. `adminUsernames` maps a normalized username to a Firebase Auth UID and is server-only; Firestore rules deny all client access to that collection. Homepage banner objects use `homepage-slides/{slideId}/{fileName}`. Admin slide editing and upload are unavailable while administrator access is paused.
 
-If there are no enabled published slides, the homepage uses eight local model slides (Tunwal Alfa Pro, Tunwal Mini Lithino, Tunwal Sport 63, YO Bykes YO Smart+, YO Bykes YO Smart, YO Bykes YO DX, WELLEXSA Double Light and EoX Electric OKO) and cycles them every five seconds.
+The homepage does not substitute local demo scooters or model slides when Firebase has no published catalogue content. In that case, product details remain pending and the existing brand hero artwork remains in place.
 
 ### Initial DECCAN R listing
 
@@ -272,36 +278,41 @@ The prior admin-only DECCAN R editor is unavailable while administrator access i
 
 ## Local testing
 
-After verifying the Firebase Web App config and deploying Functions, indexes and rules, serve the project over HTTP from its root (opening the HTML as a `file:` URL does not support Firebase ES modules consistently):
+Serve the project over HTTP from its root for browser checks (opening the HTML as a `file:` URL does not support Firebase ES modules consistently). The automated tests below use local files and Firebase emulators; they do not call production services.
 
 ```powershell
 npm run lint:crm
+npm run test:crm-auth
 npm run test:enquiry
+npm run test:public-build
+npm run test:crm-assignment
+npm run test:enquiry-cors
+npm run build:public
 python -m http.server 8000
 ```
 
-`npm run lint:crm` checks JavaScript syntax for the CRM, enquiry and bike pages, setup scripts and Functions. `npm run test:enquiry` checks WhatsApp draft construction without sending a message or creating CRM data. This repository does not yet include automated Firebase Emulator Rules/Functions tests; do not treat syntax checks or a local static page load as authorization tests.
+`npm run lint:crm` checks JavaScript syntax for the CRM, enquiry and bike pages, setup scripts and Functions. `npm run test:enquiry` checks WhatsApp draft construction without sending a message or creating CRM data. The CRM assignment and enquiry CORS tests use only the local Firebase emulators and demo projects. The public-build test creates the ignored `cloudflare-public/` output and checks that private project files are excluded.
 
-Open `http://localhost:8000` and test the authentication paths separately:
+Open `http://localhost:8000` and check these paths separately:
 
-1. **Customer signup:** in a test Firebase project, open `signup.html`, submit a valid name, email, mobile number and matching password of at least 8 characters. Confirm the user appears in Firebase Authentication and a matching `users/{uid}` profile is created in Firestore. If the profile write fails after Auth creates the user, signup explains that the account already exists, resets the button, and provides a link to My Account to retry profile completion; do not submit signup again for that email.
-2. **Customer login:** sign out, open `signin.html`, and sign in with that email and password. Normal sign-in returns to the homepage; only an explicit protected-page return such as `?return=account.html` resumes that page. Verify the shared profile icon opens the customer menu while signed in and Sign In / Create Account while logged out. Try a wrong password and verify the page displays a useful error without exposing credentials.
-3. **Admin shutdown:** open each admin URL directly and confirm it returns the host's 404 or the local unavailable page, with no login/password forms or dashboard controls. Confirm the admin callables and rules deny privileged access after deploying the changes.
-4. **Customer order history and enquiries:** confirm a customer can read only their own historical orders. Submit a product enquiry and verify it appears in the CRM; no website checkout or online order creation is available.
+1. **Public catalogue:** confirm only published Firebase scooter records appear. When verified prices, availability or specifications are absent, the page must show pending information rather than invent values or insert demo products.
+2. **Customer account pages:** open `signin.html`, `signup.html` and `account.html`. These pages remain visible, but customer authentication and account features are intentionally disabled.
+3. **Staff CRM:** use a dedicated Staff account in a test Firebase project. Confirm the dashboard lists only assigned records and supports assigned enquiry status changes. Owner-only pages and lead intake remain unavailable to Staff.
+4. **Public enquiry:** submit a valid enquiry against a published scooter in a test project. Confirm the record is saved before the WhatsApp draft opens, then verify the customer must press Send manually. No website checkout or online order creation is available.
 
-If signup returns `400`, confirm the Web App config belongs to the intended existing project, Email/Password is enabled, and the API key is not blocking Identity Toolkit. Then test protected account/order history and sign-out. Try publishing a bike with missing required fields, an invalid image type, and an image larger than 10 MB only after administrator access has been deliberately re-enabled. Confirm published catalogue prices/specifications and product enquiries remain available.
+Do not run production database seeds or alter production Firebase records as part of these checks. A successful local test does not verify production Firebase configuration, Cloudflare Pages CORS/auth domains, or the real published catalogue.
 
 If local Python is unavailable, use any static HTTP server that serves this folder without changing the project's Firebase access rules.
 
 ## Deploy the website
 
-After Firebase setup and local authentication, enquiry and CRM smoke tests:
+After previewing the generated static output and confirming the exact Cloudflare Pages hostname, configure that hostname in Firebase's callable CORS allowlist and Authentication authorized domains. Review Firebase rules and indexes separately before applying them to the intended project. Do not deploy from the repository root.
 
 ```powershell
-firebase deploy --only hosting,firestore:rules,storage,functions
+npm run build:public
 ```
 
-Firebase Hosting serves the static HTML/CSS/JavaScript. Firebase Authentication, Firestore and Storage are the backend. The hosting configuration excludes the setup script, package files and security-rules source files from the hosted site.
+For Cloudflare Pages, use `npm run build:public` as the build command and `cloudflare-public` as the output directory. Firebase Authentication, Firestore and Storage remain separate backend services. The repository does not contain production CORS/auth-domain values; do not deploy until these have been confirmed and configured.
 
 ## Security and operations
 

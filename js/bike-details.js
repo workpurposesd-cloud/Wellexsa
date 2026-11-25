@@ -1,13 +1,12 @@
 import { db, isFirebaseConfigured } from "./firebase-config.js";
 import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { createImageFallback, demoScooters, formatPrice, specificationFields } from "./bikes.js";
+import { createImageFallback, formatPrice, specificationFields } from "./bikes.js";
 import { openEnquiryForm } from "./enquiry.js";
 import { observeScrollElements } from "./site-nav.js";
 
 const container = document.getElementById("bike-details");
 const params = new URLSearchParams(window.location.search);
 const bikeId = params.get("id");
-const demoId = params.get("demo");
 const setError = (text) => {
   const error = document.createElement("div");
   error.className = "details-error";
@@ -15,11 +14,7 @@ const setError = (text) => {
   container.replaceChildren(container.querySelector(".back-link"), error);
 };
 
-if (demoId) {
-  const demoBike = demoScooters.find((bike) => bike.id === demoId);
-  if (demoBike) renderBike(demoBike);
-  else setError("This demonstration model could not be found. Return to the showroom to browse available models.");
-} else if (!isFirebaseConfigured) {
+if (!isFirebaseConfigured) {
   setError("This website is ready to connect to Firebase. Complete the setup instructions in README.md to view scooter details.");
 } else if (!bikeId) {
   setError("No scooter was selected. Return to the showroom to browse available scooters.");
@@ -37,7 +32,6 @@ if (demoId) {
 }
 
 function renderBike(bike) {
-  const isDemo = bike.demoData === true;
   const layout = document.createElement("div");
   layout.className = "details-layout";
   const gallery = document.createElement("div");
@@ -87,26 +81,21 @@ function renderBike(bike) {
   model.textContent = bike.model || "";
   const price = document.createElement("p");
   price.className = "details-price";
-  price.textContent = isDemo ? "Price and availability set by showroom" : formatPrice(bike.price);
+  price.textContent = formatPrice(bike.price);
   const description = document.createElement("p");
   description.className = "details-description";
   description.textContent = bike.description || bike.shortDescription || "";
-  const demoNotice = document.createElement("p");
-  demoNotice.className = "details-demo-notice";
-  demoNotice.textContent = bike.id === "demo-tunwal-alfa-pro"
-    ? "Demonstration listing only. No price or stock is set for this preview."
-    : "Demonstration model only. These sample photos and specifications are unverified and are not an offer for sale.";
   const descriptionHeading = document.createElement("h2");
   descriptionHeading.className = "details-description-heading";
   descriptionHeading.textContent = "About this ride";
   const actions = document.createElement("div");
   actions.className = "details-cta";
-  const stockCount = Number(bike.stockQuantity) || 0;
+  const stockCount = bike.stockQuantity;
   const stock = document.createElement("p");
-  stock.className = `stock-badge${isDemo ? " demo-badge" : stockCount > 0 ? "" : " out-of-stock"}`;
-  stock.textContent = isDemo
-    ? "DEMONSTRATION DATA · UNVERIFIED · NOT FOR SALE"
-    : stockCount > 0 ? `In stock · ${stockCount} available` : "OUT OF STOCK";
+  stock.className = `stock-badge${Number.isSafeInteger(stockCount) && stockCount === 0 ? " out-of-stock" : ""}`;
+  stock.textContent = Number.isSafeInteger(stockCount)
+    ? stockCount > 0 ? `In stock · ${stockCount} available` : "OUT OF STOCK"
+    : "Availability pending";
   const enquireButton = document.createElement("button");
   enquireButton.type = "button";
   enquireButton.className = "button button-dark";
@@ -126,7 +115,6 @@ function renderBike(bike) {
   enquireButton.addEventListener("click", () => openEnquiryForm(bike));
   actions.append(enquireButton);
   copy.append(eyebrow, title, model, price, stock);
-  if (isDemo) copy.append(demoNotice);
   if (description.textContent) copy.append(descriptionHeading, description);
   copy.append(actions);
 
@@ -156,7 +144,14 @@ function renderBike(bike) {
     row.append(icon, name, detail);
     specList.append(row);
   });
-  if (specList.childElementCount) specs.append(specsTitle, specList);
+  if (specList.childElementCount) {
+    specs.append(specsTitle, specList);
+  } else {
+    const pending = document.createElement("p");
+    pending.className = "details-specs-pending";
+    pending.textContent = "Verified specifications are pending.";
+    specs.append(specsTitle, pending);
+  }
   copy.append(specs);
   layout.append(gallery, copy);
   container.replaceChildren(container.querySelector(".back-link"), layout);

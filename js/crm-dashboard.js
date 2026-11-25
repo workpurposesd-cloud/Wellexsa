@@ -25,6 +25,12 @@ const state = {
   audit: []
 };
 let toastTimeout;
+const enquiryStatuses = [
+  ["New", "new"],
+  ["Contacted", "contacted"],
+  ["Converted", "converted"],
+  ["Closed", "closed"]
+];
 
 const callable = (name) => httpsCallable(crmFunctions, name);
 const can = (permission) => state.role === "owner" ||
@@ -35,6 +41,13 @@ const make = (tag, className = "", value = "") => {
   if (value) element.textContent = value;
   return element;
 };
+
+function scopedQuery(collectionRef, ...constraints) {
+  if (state.role !== "staff") return query(collectionRef, ...constraints);
+  const uid = crmAuth.currentUser?.uid;
+  if (!uid) throw new Error("The signed-in CRM account could not be verified.");
+  return query(collectionRef, where("assignedStaffUid", "==", uid), ...constraints);
+}
 
 function showToast(value, isError = false) {
   toast.textContent = value;
@@ -75,6 +88,9 @@ function indiaDateKey(value = new Date()) {
 function statusLabel(status) {
   return ({
     new: "New lead",
+    contacted: "Contacted",
+    converted: "Converted",
+    closed: "Closed",
     active: "Active",
     purchased: "Purchased",
     not_interested: "Not interested",
@@ -587,9 +603,40 @@ function renderEnquiries() {
       appendCell(row, "—");
     }
     appendCell(row, enquiry.bikeModel);
+    appendCell(row, enquiry.message || "—");
     appendCell(row, dateText(enquiry.createdAt, true));
     appendCell(row, enquiry.customerType === "existing" ? "Existing customer" : "New customer");
-    appendCell(row, make("span", `crm-pill ${enquiry.status}`, statusLabel(enquiry.status)));
+    if (can("customers:edit")) {
+      const status = make("select", "crm-field");
+      status.setAttribute("aria-label", `Update enquiry status for ${enquiry.customerName || "customer"}`);
+      enquiryStatuses.forEach(([label, value]) => status.add(new Option(label, value)));
+      status.value = enquiry.status;
+      status.addEventListener("change", async () => {
+        const previousStatus = enquiry.status;
+        const nextStatus = status.value;
+        status.disabled = true;
+        try {
+          if (String(enquiry.id).startsWith("mysql:")) {
+            const mysqlId = String(enquiry.id).slice("mysql:".length);
+            await callApiWithAuth(crmAuth, `/api/crm/enquiries/${encodeURIComponent(mysqlId)}`, {
+              method: "PATCH",
+              body: { status: nextStatus }
+            });
+          } else {
+            await callable("crmUpdateEnquiry")({ enquiryId: enquiry.id, status: nextStatus });
+          }
+          showToast("Enquiry status updated.");
+          await loadData();
+        } catch (error) {
+          status.value = previousStatus;
+          status.disabled = false;
+          showToast(error.message || "The enquiry status could not be updated.", true);
+        }
+      });
+      appendCell(row, status);
+    } else {
+      appendCell(row, make("span", `crm-pill ${enquiry.status}`, statusLabel(enquiry.status)));
+    }
     rows.append(row);
   });
   const empty = document.getElementById("crm-enquiry-empty");
@@ -627,7 +674,8 @@ async function loadMySqlEnquiries() {
     bikeModel: enquiry.bikeModel || "",
     createdAt: enquiry.createdAt,
     customerType: enquiry.customerId ? "existing" : "new",
-    status: enquiry.status
+    status: enquiry.status,
+    message: enquiry.message || ""
   }));
 }
 
@@ -957,20 +1005,20 @@ async function loadData() {
   try {
     const [customers, enquiries, purchases, intakes, models, staff, completed] = await Promise.all([
       can("customers:view")
-        ? getDocs(query(collection(crmDb, "crmCustomers"), orderBy("updatedAt", "desc")))
+        ? getDocs(scopedQuery(collection(crmDb, "crmCustomers"), orderBy("updatedAt", "desc")))
         : Promise.resolve({ docs: [], size: 0 }),
       can("customers:view")
-        ? getDocs(query(collection(crmDb, "crmEnquiries"), orderBy("createdAt", "desc"), limit(200)))
+        ? getDocs(scopedQuery(collection(crmDb, "crmEnquiries"), orderBy("createdAt", "desc"), limit(200)))
         : Promise.resolve({ docs: [], size: 0 }),
       can("purchases:view")
-        ? getDocs(query(collection(crmDb, "crmPurchases"), orderBy("purchaseDate", "desc")))
+        ? getDocs(scopedQuery(collection(crmDb, "crmPurchases"), orderBy("purchaseDate", "desc")))
         : Promise.resolve({ docs: [], size: 0 }),
-      can("leads:resolve")
+      state.role === "owner"
         ? getDocs(query(collection(crmDb, "crmLeadIntakes"), where("status", "==", "needs_review")))
         : Promise.resolve({ docs: [], size: 0 }),
       can("purchases:view") ? callable("crmGetBikeModels")() : Promise.resolve({ data: { models: [] } }),
       can("customers:view") ? callable("crmListStaff")() : Promise.resolve({ data: { staff: [] } }),
-      can("customers:view")
+      state.role === "owner"
         ? getDocs(query(collectionGroup(crmDb, "contactHistory"), orderBy("createdAt", "desc"), limit(100)))
         : Promise.resolve({ docs: [] })
     ]);
@@ -1165,6 +1213,8 @@ onAuthStateChanged(crmAuth, async (user) => {
     document.querySelectorAll("[data-owner-only]").forEach((element) => {
       element.hidden = state.role !== "owner";
     });
+    const completedFollowupsPanel = document.getElementById("crm-completed-followups")?.closest(".crm-follow-group");
+    if (completedFollowupsPanel) completedFollowupsPanel.hidden = state.role !== "owner";
     const requiredByTab = {
       customers: "customers:view",
       enquiries: "customers:view",
@@ -1181,7 +1231,7 @@ onAuthStateChanged(crmAuth, async (user) => {
       button.hidden = permission === "owner"
         ? state.role !== "owner"
         : permission ? !can(permission) : false;
-      if (button.dataset.tab === "leads" && !can("leads:resolve")) button.hidden = true;
+      if (button.dataset.tab === "leads" && state.role !== "owner") button.hidden = true;
       if (button.dataset.tab === "follow-ups" && !can("reminders:view")) button.hidden = true;
     });
     const addCustomerButton = document.getElementById("crm-add-customer");

@@ -1,6 +1,6 @@
 import { db, isFirebaseConfigured } from "./firebase-config.js";
 import { collection, onSnapshot, orderBy, query, where } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { createImageFallback, demoScooters, formatPrice, getBatteryRangeOptions } from "./bikes.js";
+import { createImageFallback, formatPrice, getBatteryRangeOptions } from "./bikes.js";
 import { openEnquiryForm } from "./enquiry.js";
 import { observeScrollElements } from "./site-nav.js";
 
@@ -24,82 +24,20 @@ const catalogImageObserver = "IntersectionObserver" in window
     });
   }, { rootMargin: "0px" })
   : null;
-const demoNotice = document.getElementById("demo-notice");
 const empty = document.getElementById("bike-empty");
 const heroImage = document.getElementById("hero-scooter");
 const heroWebpSource = document.getElementById("hero-scooter-webp");
-const heroEnquiry = document.getElementById("hero-enquiry");
 const featuredBikeName = document.getElementById("hero-bike-name");
 const sliderControls = document.getElementById("slider-controls");
 const sliderIndicators = document.getElementById("slider-indicators");
 const sliderCount = document.getElementById("slider-count");
 const previousSlideButton = document.querySelector(".slider-previous");
 const nextSlideButton = document.querySelector(".slider-next");
-const fallbackSlides = [
-  {
-    title: "Tunwal Alfa Pro",
-    description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image1.png",
-    buttonText: "EXPLORE NOW",
-    buttonUrl: "#bikes"
-  },
-  {
-    title: "Tunwal Mini Lithino",
-    description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image2.png",
-    buttonText: "EXPLORE NOW",
-    buttonUrl: "#bikes"
-  },
-  {
-    title: "YO Bykes YO Smart+",
-    description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image4.png",
-    buttonText: "EXPLORE NOW",
-    buttonUrl: "#bikes"
-  },
-  {
-    title: "YO Bykes YO Smart",
-    description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image5.png",
-    buttonText: "EXPLORE NOW",
-    buttonUrl: "#bikes"
-  },
-  {
-    title: "Tunwal Sport 63",
-    description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image3.png",
-    buttonText: "EXPLORE NOW",
-    buttonUrl: "#bikes"
-  },
-  {
-    title: "YO Bykes YO DX",
-    description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image6.png",
-    buttonText: "EXPLORE NOW",
-    buttonUrl: "#bikes"
-  },
-  {
-    title: "WELLEXSA Double Light",
-    description: "Lithium and GEL battery options.",
-    imageUrl: "assets/images/image7.png",
-    buttonText: "EXPLORE NOW",
-    buttonUrl: "#bikes"
-  },
-  {
-    title: "EoX Electric OKO",
-    description: "Specified range: 60 KM.",
-    imageUrl: "assets/images/image8.png",
-    buttonText: "EXPLORE NOW",
-    buttonUrl: "#bikes"
-  }
-];
-let heroBike = demoScooters[0];
 let highlightSlides = [];
 let currentSlideIndex = 0;
 let autoSlideTimer;
 let transitionTimer;
 let slideChangeRequest = 0;
-let activeSlidesAreFallback = false;
 const slideImageLoads = new Map();
 
 function resolveBikeImageUrl(imageUrl) {
@@ -163,11 +101,7 @@ async function showSlide(index, animate = true) {
   if (!loadedSlide) {
     highlightSlides.splice(nextIndex, 1);
     if (!highlightSlides.length) {
-      if (activeSlidesAreFallback) {
-        console.error("Could not load any homepage highlight images");
-      } else {
-        renderSlides([]);
-      }
+      renderSlides([]);
       return;
     }
     if (currentSlideIndex > nextIndex) currentSlideIndex -= 1;
@@ -186,7 +120,6 @@ async function showSlide(index, animate = true) {
   const title = typeof slide.title === "string" ? slide.title.trim() : "";
   const changeImage = () => {
     if (request !== slideChangeRequest) return;
-    heroBike = { name: title, model: title };
     featuredBikeName.textContent = title;
     featuredBikeName.hidden = !title;
     heroWebpSource.srcset = loadedSlide.imageUrl.endsWith(".webp") ? loadedSlide.imageUrl : "";
@@ -254,10 +187,10 @@ function preloadNextSlide() {
 
 function renderSlides(records) {
   const publishedSlides = records
-    .filter((slide) => slide && typeof slide.imageUrl === "string" && slide.imageUrl.trim())
+    .filter((slide) => slide && slide.demoData !== true &&
+      typeof slide.imageUrl === "string" && slide.imageUrl.trim())
     .map((slide) => ({ ...slide, imageUrl: resolveBikeImageUrl(slide.imageUrl) }));
-  activeSlidesAreFallback = publishedSlides.length === 0;
-  highlightSlides = activeSlidesAreFallback ? fallbackSlides : publishedSlides;
+  highlightSlides = publishedSlides;
   currentSlideIndex = 0;
   updateSliderControls();
   showSlide(0, false);
@@ -290,19 +223,16 @@ sliderViewport.addEventListener("pointercancel", () => {
   touchStartPoint = null;
 });
 
-heroEnquiry.addEventListener("click", () => openEnquiryForm(heroBike));
 renderSlides([]);
 
-function renderCatalog(bikes, demoMode = false) {
+function renderCatalog(bikes) {
   grid.replaceChildren();
-  demoNotice.hidden = !demoMode;
-  empty.hidden = true;
+  empty.hidden = bikes.length > 0;
   if (!bikes.length) return;
 
   for (const bike of bikes) {
-    const isDemo = bike.demoData === true;
     const card = document.createElement("article");
-    card.className = `bike-card${isDemo ? " is-demo" : ""}`;
+    card.className = "bike-card";
     const imageArea = document.createElement("div");
     imageArea.className = "bike-card-image";
     const imageUrl = resolveBikeImageUrl(bike.imageUrls?.[0]);
@@ -316,7 +246,7 @@ function renderCatalog(bikes, demoMode = false) {
         picture.append(webpSource);
       }
       const image = document.createElement("img");
-      image.alt = isDemo ? `${bike.name} sample scooter photo` : bike.name || "Electric scooter";
+      image.alt = bike.name || "Electric scooter";
       image.loading = "lazy";
       image.decoding = "async";
       image.fetchPriority = "low";
@@ -376,20 +306,13 @@ function renderCatalog(bikes, demoMode = false) {
           ["Motor and controller warranty", additional["Motor and Controller Warranty"]],
           ["Specified range", fixedRange]
         ]
-        : isDemo
-        ? [
-          ["Battery", bike.batteryChemistry],
-          ["Range", bike.range],
-          ["Top speed", bike.topSpeed],
-          ["Motor", bike.motor],
-          ["Charging", bike.chargingTime]
-        ]
-        : [
-          ["Range", bike.range],
-          ["Top speed", bike.topSpeed],
-          ["Motor", bike.motor],
-          ["Charging", bike.chargingTime]
-        ];
+          : [
+            ["Battery", bike.batteryChemistry],
+            ["Range", bike.range],
+            ["Top speed", bike.topSpeed],
+            ["Motor", bike.motor],
+            ["Charging", bike.chargingTime]
+          ];
     for (const [label, value] of values) {
       if (!value) continue;
       const block = document.createElement("div");
@@ -417,20 +340,18 @@ function renderCatalog(bikes, demoMode = false) {
       specs.append(block);
     }
     const stock = document.createElement("span");
-    const stockCount = Number(bike.stockQuantity) || 0;
-    stock.className = `stock-badge${isDemo ? " demo-badge" : stockCount > 0 ? "" : " out-of-stock"}`;
-    stock.textContent = isDemo
-      ? "DEMO SPECIFICATIONS · NOT VERIFIED"
-      : stockCount > 0 ? `In stock · ${stockCount} available` : "OUT OF STOCK";
+    const stockCount = bike.stockQuantity;
+    stock.className = `stock-badge${Number.isSafeInteger(stockCount) && stockCount === 0 ? " out-of-stock" : ""}`;
+    stock.textContent = Number.isSafeInteger(stockCount)
+      ? stockCount > 0 ? `In stock · ${stockCount} available` : "OUT OF STOCK"
+      : "Availability pending";
     const footer = document.createElement("div");
     footer.className = "bike-card-footer";
     const price = document.createElement("span");
     price.className = "bike-price";
-    price.textContent = isDemo ? "Price set by showroom" : formatPrice(bike.price);
+    price.textContent = formatPrice(bike.price);
     const detailLink = document.createElement("a");
-    detailLink.href = isDemo
-      ? `bike-details.html?demo=${encodeURIComponent(bike.id)}`
-      : `bike-details.html?id=${encodeURIComponent(bike.id)}`;
+    detailLink.href = `bike-details.html?id=${encodeURIComponent(bike.id)}`;
     detailLink.innerHTML = 'View Details <span aria-hidden="true">→</span>';
     footer.append(price, detailLink);
     body.append(title, specs, stock, makeEnquiryButton(bike), footer);
@@ -440,15 +361,9 @@ function renderCatalog(bikes, demoMode = false) {
   }
 }
 
-function renderDemoCatalog(noticeText) {
-  renderCatalog(demoScooters, true);
-  demoNotice.textContent = noticeText;
-}
-
 if (!isFirebaseConfigured) {
-  renderDemoCatalog("DEMO CATALOG ONLY — Firebase is not configured. These sample photos and specifications are not verified products, stock or prices.");
+  renderCatalog([]);
 } else {
-  renderDemoCatalog("LIVE LISTINGS LOADING — The cards below are demonstration concepts only, not verified products, stock or prices.");
   const activeSlides = query(
     collection(db, "homepageSlides"),
     where("status", "==", "published"),
@@ -467,16 +382,17 @@ if (!isFirebaseConfigured) {
 
   const publishedBikes = query(collection(db, "bikes"), where("status", "==", "published"));
   onSnapshot(publishedBikes, (snapshot) => {
-    const bikes = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    const bikes = snapshot.docs
+      .map((item) => ({ id: item.id, ...item.data() }))
+      .filter((bike) => bike.demoData !== true);
     bikes.sort((a, b) => {
       const dateA = a.updatedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
       const dateB = b.updatedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
       return dateB - dateA;
     });
-    if (bikes.length) renderCatalog(bikes);
-    else renderDemoCatalog("DEMONSTRATION MODE — The specifications below are sample data, not verified production specifications. Demo models have no price or stock and cannot be purchased. Use an admin template to verify and publish real listings.");
+    renderCatalog(bikes);
   }, (error) => {
-    renderDemoCatalog("LIVE INVENTORY COULD NOT BE LOADED — The cards below are demonstration concepts only, not published inventory. Refresh the page or contact the showroom for verified listings.");
+    renderCatalog([]);
     console.error("Could not load published scooters", error);
   });
 }

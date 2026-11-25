@@ -30,11 +30,15 @@
     }
   ],
   "hosting": {
-    "public": ".",
+    "public": "cloudflare-public",
     "ignore": [
       "firebase.json",
       "firestore.rules",
       "storage.rules",
+      ".env*",
+      "**/.env*",
+      "server/**",
+      "database/**",
       "admin-login.html",
       "admin-dashboard.html",
       "admin-change-password.html",
@@ -46,6 +50,7 @@
       "firestore.indexes.json",
       "scripts/**",
       "functions/**",
+      "tests/**",
       "node_modules/**",
       ".vscode/**",
       ".git/**"

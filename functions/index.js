@@ -16,6 +16,7 @@ export {
   crmResolveLeadIntake,
   crmResetStaffAccess,
   crmSubmitBikeEnquiry,
+  crmUpdateEnquiry,
   crmUpdateCustomer,
   crmUpdatePurchase,
   crmUpdateStaff

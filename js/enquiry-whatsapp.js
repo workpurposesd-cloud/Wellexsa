@@ -4,7 +4,8 @@ export function buildWhatsAppUrl({
   scooterName,
   scooterModel,
   customerName,
-  mobileNumber
+  mobileNumber,
+  enquiryMessage
 }) {
   const message = [
     "Hello WELLEXSA MOTORS,",
@@ -14,7 +15,7 @@ export function buildWhatsAppUrl({
     `Customer Name: ${customerName}`,
     `Mobile Number: ${mobileNumber}`,
     "",
-    "Enquiry: Please share the price, availability and more details."
+    `Enquiry: ${enquiryMessage}`
   ].join("\n");
   return `https://wa.me/${showroomWhatsAppNumber}?text=${encodeURIComponent(message)}`;
 }

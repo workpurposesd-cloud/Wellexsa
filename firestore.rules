@@ -40,6 +40,18 @@ service cloud.firestore {
           && permission in get(crmAccessPath()).data.permissions);
     }
 
+    function isAssignedStaffRecord(data) {
+      return isActiveCrmUser()
+        && get(crmAccessPath()).data.role == 'staff'
+        && data.assignedStaffUid == request.auth.uid;
+    }
+
+    function isAssignedCustomer(customerId) {
+      return isActiveCrmUser()
+        && get(crmAccessPath()).data.role == 'staff'
+        && get(/databases/$(database)/documents/crmCustomers/$(customerId)).data.assignedStaffUid == request.auth.uid;
+    }
+
     function validBike(data) {
       return data.keys().hasOnly([
           'name', 'price', 'model', 'brand', 'shortDescription', 'description',
@@ -148,27 +160,31 @@ service cloud.firestore {
     }
 
     match /crmCustomers/{customerId} {
-      allow get, list: if hasCrmPermission('customers:view');
+      allow get, list: if isCrmOwner()
+        || (hasCrmPermission('customers:view') && isAssignedStaffRecord(resource.data));
       allow create, update, delete: if false;
 
       match /contactHistory/{eventId} {
-        allow get, list: if hasCrmPermission('customers:view');
+        allow get, list: if isCrmOwner()
+          || (hasCrmPermission('customers:view') && isAssignedCustomer(customerId));
         allow create, update, delete: if false;
       }
     }
 
     match /crmEnquiries/{enquiryId} {
-      allow get, list: if hasCrmPermission('customers:view');
+      allow get, list: if isCrmOwner()
+        || (hasCrmPermission('customers:view') && isAssignedStaffRecord(resource.data));
       allow create, update, delete: if false;
     }
 
     match /crmLeadIntakes/{intakeId} {
-      allow get, list: if hasCrmPermission('customers:view') || hasCrmPermission('leads:resolve');
+      allow get, list: if isCrmOwner();
       allow create, update, delete: if false;
     }
 
     match /crmPurchases/{purchaseId} {
-      allow get, list: if hasCrmPermission('purchases:view');
+      allow get, list: if isCrmOwner()
+        || (hasCrmPermission('purchases:view') && isAssignedStaffRecord(resource.data));
       allow create, update, delete: if false;
     }
 

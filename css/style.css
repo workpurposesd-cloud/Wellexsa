@@ -1316,7 +1316,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   animation: metallic-title 8s ease-in-out infinite alternate;
 }
 .hero-slide-media { position: relative; }
-.hero-demo-image { width: 100%; height: 100%; min-height: 0; object-fit: contain; object-position: center; }
+.hero-image { width: 100%; height: 100%; min-height: 0; object-fit: contain; object-position: center; }
 .hero-slide-media-empty > span {
   position: absolute;
   right: 20px;
@@ -1438,14 +1438,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 @media (max-width: 950px) {
   .bike-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
-  .hero-demo-image { min-height: 360px; }
+  .hero-image { min-height: 360px; }
   .details-gallery-main { min-height: 420px; }
   .details-gallery-main img { height: 420px; }
 }
 @media (max-width: 700px) {
   .brand-logo { width: 142px; height: 50px; }
   .brand-footer .brand-logo { width: 128px; height: 45px; }
-  .hero-demo-image { min-height: 0; }
+  .hero-image { min-height: 0; }
   .bike-grid { grid-template-columns: 1fr; gap: 20px; }
   .bike-card-image { height: clamp(250px, 82vw, 310px); }
   .bike-card-body { padding: 23px 21px; }
@@ -3273,10 +3273,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .homepage .slider-viewport {
   touch-action: pan-y;
 }
-.homepage .hero-slide-media .hero-demo-image {
+.homepage .hero-slide-media .hero-image {
   transition: opacity .22s ease;
 }
-.homepage .hero-slide-media .hero-demo-image.is-transitioning {
+.homepage .hero-slide-media .hero-image.is-transitioning {
   opacity: 0;
 }
 .homepage .slider-arrow[hidden],
@@ -3295,7 +3295,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   outline-offset: 3px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .homepage .hero-slide-media .hero-demo-image {
+  .homepage .hero-slide-media .hero-image {
     transition: none;
   }
 }

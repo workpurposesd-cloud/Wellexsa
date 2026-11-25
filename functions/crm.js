@@ -16,6 +16,7 @@ const CRM_PERMISSIONS = new Set([
   "reminders:view"
 ]);
 const STAFF_DEFAULT_PERMISSIONS = [...CRM_PERMISSIONS];
+const ENQUIRY_STATUSES = new Set(["new", "contacted", "converted", "closed"]);
 const CALL_STATUSES = new Set(["Answered", "Not Answered", "Switched Off", "Busy", "Wrong Number"]);
 const INTEREST_STATUSES = new Set([
   "Very Interested", "Interested", "Need More Time", "Not Interested", "Already Purchased"
@@ -122,6 +123,12 @@ async function requireCrmUser(request, permission = null) {
 function requireOwner(user) {
   if (user.role !== "owner") {
     throw new HttpsError("permission-denied", "Owner access is required.");
+  }
+}
+
+function requireAssignedStaff(user, record) {
+  if (user.role === "staff" && record.assignedStaffUid !== user.uid) {
+    throw new HttpsError("permission-denied", "Staff can access only assigned customer records.");
   }
 }
 
@@ -325,7 +332,20 @@ export const crmCreateCustomer = onCall({ region: "us-central1" }, async (reques
   const customerRef = db().collection("crmCustomers").doc();
   const result = await db().runTransaction(async (transaction) => {
     const index = await transaction.get(indexRef);
-    if (index.exists) return { duplicate: true, customerId: index.data().customerId };
+    if (index.exists) {
+      const existingCustomerId = index.data().customerId;
+      if (!validDocumentId(existingCustomerId)) {
+        throw new HttpsError("internal", "The matching customer record could not be verified.");
+      }
+      const existingCustomer = await transaction.get(
+        db().collection("crmCustomers").doc(existingCustomerId)
+      );
+      if (!existingCustomer.exists) {
+        throw new HttpsError("internal", "The matching customer record could not be found.");
+      }
+      requireAssignedStaff(actor, existingCustomer.data());
+      return { duplicate: true, customerId: existingCustomerId };
+    }
     const assignedStaffUid = await assignStaff(transaction, assigneeUid);
     transaction.create(customerRef, {
       ...input,
@@ -366,7 +386,8 @@ export const crmSubmitBikeEnquiry = onCall(
   async (request) => {
     const data = request.data;
     if (!data || typeof data !== "object" || Array.isArray(data) ||
-        Object.keys(data).some((key) => !["requestId", "name", "mobile", "bikeModel"].includes(key))) {
+        Object.keys(data).some((key) =>
+          !["requestId", "bikeId", "bikeName", "name", "mobile", "bikeModel", "message"].includes(key))) {
       throw new HttpsError("invalid-argument", "Enquiry details are invalid.");
     }
     const requestId = data.requestId;
@@ -374,13 +395,20 @@ export const crmSubmitBikeEnquiry = onCall(
         !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
       throw new HttpsError("invalid-argument", "Enquiry request is invalid.");
     }
+    const bikeId = text(data.bikeId, "Scooter selection", 128, true);
+    if (!validDocumentId(bikeId)) {
+      throw new HttpsError("invalid-argument", "Scooter selection is invalid.");
+    }
+    const bikeName = text(data.bikeName, "Scooter name", 100, true);
+    const bikeModel = text(data.bikeModel, "Bike model", 100, true);
     const name = text(data.name, "Customer name", 100, true);
     if (typeof data.mobile !== "string" || !/^[6-9]\d{9}$/.test(data.mobile)) {
       throw new HttpsError("invalid-argument", "Enter a valid 10-digit Indian mobile number.");
     }
     const phone = `+91${data.mobile}`;
-    const bikeModel = text(data.bikeModel, "Bike model", 100, true);
+    const message = text(data.message, "Enquiry message", 2000, true);
     const hash = phoneHash(phone);
+    const bikeRef = db().collection("bikes").doc(bikeId);
     const enquiryRef = db().collection("crmEnquiries").doc(requestId);
     const indexRef = db().collection("crmPhoneIndex").doc(hash);
     const newCustomerRef = db().collection("crmCustomers").doc();
@@ -388,9 +416,17 @@ export const crmSubmitBikeEnquiry = onCall(
 
     await db().runTransaction(async (transaction) => {
       if ((await transaction.get(enquiryRef)).exists) return;
-      const index = await transaction.get(indexRef);
+      const [bikeSnapshot, index] = await Promise.all([
+        transaction.get(bikeRef),
+        transaction.get(indexRef)
+      ]);
+      if (!bikeSnapshot.exists || bikeSnapshot.data().status !== "published" ||
+          bikeSnapshot.data().name !== bikeName || bikeSnapshot.data().model !== bikeModel) {
+        throw new HttpsError("failed-precondition", "This scooter is no longer available in the showroom catalogue.");
+      }
       let customerRef = newCustomerRef;
       let customerType = "new";
+      let assignedStaffUid = null;
       if (index.exists) {
         if (typeof index.data().customerId !== "string") {
           throw new HttpsError("internal", "The matching customer record could not be verified.");
@@ -401,8 +437,16 @@ export const crmSubmitBikeEnquiry = onCall(
           throw new HttpsError("internal", "The matching customer record could not be found.");
         }
         customerType = "existing";
+        assignedStaffUid = customer.data().assignedStaffUid || null;
+        if (!assignedStaffUid) {
+          assignedStaffUid = await assignStaff(transaction, assigneeUid);
+          transaction.update(customerRef, {
+            assignedStaffUid,
+            updatedAt: FieldValue.serverTimestamp()
+          });
+        }
       } else {
-        const assignedStaffUid = await assignStaff(transaction, assigneeUid);
+        assignedStaffUid = await assignStaff(transaction, assigneeUid);
         transaction.create(customerRef, {
           name,
           phone,
@@ -431,10 +475,13 @@ export const crmSubmitBikeEnquiry = onCall(
 
       transaction.create(enquiryRef, {
         customerId: customerRef.id,
+        bikeId,
         customerName: name,
         mobile: phone,
         customerType,
         bikeModel,
+        message,
+        assignedStaffUid,
         status: "new",
         createdAt: FieldValue.serverTimestamp()
       });
@@ -498,17 +545,45 @@ export const crmUpdateCustomer = onCall({ region: "us-central1" }, async (reques
   const result = await db().runTransaction(async (transaction) => {
     const customer = await transaction.get(customerRef);
     if (!customer.exists || customer.data().deletedAt) throw new HttpsError("not-found", "Customer was not found.");
+    requireAssignedStaff(actor, customer.data());
+    let phoneIndexChanges = null;
     if (newPhone && newPhone !== customer.data().phone) {
       const newIndexRef = db().collection("crmPhoneIndex").doc(phoneHash(newPhone));
       const newIndex = await transaction.get(newIndexRef);
       if (newIndex.exists && newIndex.data().customerId !== customerId) {
         return { duplicate: true, customerId: newIndex.data().customerId };
       }
-      const oldIndexRef = db().collection("crmPhoneIndex").doc(customer.data().phoneHash);
-      transaction.delete(oldIndexRef);
-      transaction.create(newIndexRef, { customerId, createdAt: FieldValue.serverTimestamp() });
+      phoneIndexChanges = {
+        oldIndexRef: db().collection("crmPhoneIndex").doc(customer.data().phoneHash),
+        newIndexRef
+      };
       updates.phone = newPhone;
       updates.phoneHash = phoneHash(newPhone);
+    }
+    if (Object.hasOwn(updates, "assignedStaffUid")) {
+      const [enquiries, purchases] = await Promise.all([
+        transaction.get(db().collection("crmEnquiries").where("customerId", "==", customerId)),
+        transaction.get(db().collection("crmPurchases").where("customerId", "==", customerId))
+      ]);
+      const linkedRecords = [...enquiries.docs, ...purchases.docs]
+        .filter((record) => record.data().assignedStaffUid !== updates.assignedStaffUid);
+      if (linkedRecords.length > 450) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This customer has too many linked records to reassign in one operation."
+        );
+      }
+      linkedRecords.forEach((record) => transaction.update(record.ref, {
+        assignedStaffUid: updates.assignedStaffUid,
+        updatedAt: FieldValue.serverTimestamp()
+      }));
+    }
+    if (phoneIndexChanges) {
+      transaction.delete(phoneIndexChanges.oldIndexRef);
+      transaction.create(phoneIndexChanges.newIndexRef, {
+        customerId,
+        createdAt: FieldValue.serverTimestamp()
+      });
     }
     updates.updatedAt = FieldValue.serverTimestamp();
     transaction.update(customerRef, updates);
@@ -516,6 +591,28 @@ export const crmUpdateCustomer = onCall({ region: "us-central1" }, async (reques
     return { duplicate: false, customerId };
   });
   return result;
+});
+
+export const crmUpdateEnquiry = onCall({ region: "us-central1" }, async (request) => {
+  const actor = await requireCrmUser(request, "customers:edit");
+  const { enquiryId, status } = request.data || {};
+  if (!validDocumentId(enquiryId) || !ENQUIRY_STATUSES.has(status) ||
+      Object.keys(request.data || {}).some((key) => !["enquiryId", "status"].includes(key))) {
+    throw new HttpsError("invalid-argument", "Enquiry update details are invalid.");
+  }
+  const enquiryRef = db().collection("crmEnquiries").doc(enquiryId);
+  await db().runTransaction(async (transaction) => {
+    const enquiry = await transaction.get(enquiryRef);
+    if (!enquiry.exists) throw new HttpsError("not-found", "Enquiry was not found.");
+    requireAssignedStaff(actor, enquiry.data());
+    if (enquiry.data().status === status) return;
+    transaction.update(enquiryRef, {
+      status,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    addAudit(transaction, actor, "enquiry_status_updated", "enquiry", enquiryId, { status });
+  });
+  return { saved: true };
 });
 
 export const crmLogContact = onCall({ region: "us-central1" }, async (request) => {
@@ -536,6 +633,7 @@ export const crmLogContact = onCall({ region: "us-central1" }, async (request) =
       transaction.get(staffRef)
     ]);
     if (!customer.exists || customer.data().deletedAt) throw new HttpsError("not-found", "Customer was not found.");
+    requireAssignedStaff(actor, customer.data());
     if (actor.role === "staff" && (!staff.exists || staff.data().active !== true)) {
       throw new HttpsError("permission-denied", "Staff access is no longer active.");
     }
@@ -586,15 +684,17 @@ export const crmMarkPurchased = onCall({ region: "us-central1" }, async (request
       transaction.get(requestRef),
       transaction.get(customerRef)
     ]);
+    if (!customer.exists || customer.data().deletedAt) throw new HttpsError("not-found", "Customer was not found.");
+    requireAssignedStaff(actor, customer.data());
     if (existingRequest.exists) {
       if (existingRequest.data().customerId !== customerId) {
         throw new HttpsError("failed-precondition", "This purchase request ID is already in use.");
       }
       return { purchaseId: existingRequest.data().purchaseId, existing: true };
     }
-    if (!customer.exists || customer.data().deletedAt) throw new HttpsError("not-found", "Customer was not found.");
     transaction.create(purchaseRef, {
       customerId,
+      assignedStaffUid: customer.data().assignedStaffUid || null,
       customerName: customer.data().name,
       customerPhone: customer.data().phone,
       bikeModel: resolvedModel,
@@ -655,6 +755,13 @@ export const crmUpdatePurchase = onCall({ region: "us-central1" }, async (reques
   await db().runTransaction(async (transaction) => {
     const purchase = await transaction.get(purchaseRef);
     if (!purchase.exists || purchase.data().isArchived) throw new HttpsError("not-found", "Purchase was not found.");
+    const customerId = purchase.data().customerId;
+    if (!validDocumentId(customerId)) {
+      throw new HttpsError("failed-precondition", "The purchase is not linked to a valid customer.");
+    }
+    const customer = await transaction.get(db().collection("crmCustomers").doc(customerId));
+    if (!customer.exists || customer.data().deletedAt) throw new HttpsError("not-found", "Customer was not found.");
+    requireAssignedStaff(actor, customer.data());
     updates.updatedAt = FieldValue.serverTimestamp();
     transaction.update(purchaseRef, updates);
     addAudit(transaction, actor, "purchase_updated", "purchase", purchaseId, { fields: Object.keys(updates) });
@@ -687,10 +794,8 @@ export const crmArchiveRecord = onCall({ region: "us-central1" }, async (request
 });
 
 export const crmResolveLeadIntake = onCall({ region: "us-central1" }, async (request) => {
-  const actor = await requireCrmUser(request, "leads:resolve");
-  if (actor.role === "staff" && !actor.permissions.includes("customers:view")) {
-    throw new HttpsError("permission-denied", "Viewing customers is also required to resolve registration matches.");
-  }
+  const actor = await requireCrmUser(request);
+  requireOwner(actor);
   const { intakeId, customerId, confirmedPhone } = request.data || {};
   if (!validDocumentId(intakeId) || !validDocumentId(customerId)) {
     throw new HttpsError("invalid-argument", "Lead match is invalid.");

@@ -1,47 +1,16 @@
-import { callPublicApi } from "./api.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
+import { app } from "./firebase-config.js";
 import { buildWhatsAppUrl } from "./enquiry-whatsapp.js";
 
-const CATALOG_PAGE_SIZE = 100;
+const publicFunctions = app ? getFunctions(app, "us-central1") : null;
+
 let dialog;
 let selectedBikeName = "";
 let selectedBikeModel = "";
 let selectedBikeCatalogModel = "";
+let selectedBikeId = "";
 let requestId = "";
 let submitting = false;
-
-async function resolveSqlBikeId(name, model) {
-  if (!name || !model) {
-    throw new Error("This scooter could not be matched to the showroom catalogue.");
-  }
-
-  const matches = [];
-  let page = 1;
-  let totalPages = 1;
-  while (page <= totalPages) {
-    const response = await callPublicApi(
-      `/api/catalog/bikes?page=${page}&pageSize=${CATALOG_PAGE_SIZE}`
-    );
-    const bikes = response?.data?.bikes;
-    const total = response?.data?.pagination?.total;
-    if (!Array.isArray(bikes) || !Number.isSafeInteger(total) || total < 0) {
-      throw new Error("The showroom catalogue could not be checked. Please try again.");
-    }
-
-    totalPages = Math.ceil(total / CATALOG_PAGE_SIZE);
-    for (const bike of bikes) {
-      if (bike?.name === name && bike?.model === model) matches.push(bike);
-      if (matches.length > 1) {
-        throw new Error("This scooter has more than one showroom catalogue match. Please contact the showroom.");
-      }
-    }
-    page += 1;
-  }
-
-  if (matches.length !== 1 || typeof matches[0]?.id !== "string") {
-    throw new Error("This scooter is not uniquely available in the showroom catalogue.");
-  }
-  return matches[0].id;
-}
 
 function createDialog() {
   dialog = document.createElement("dialog");
@@ -85,6 +54,17 @@ function createDialog() {
   mobileInput.autocomplete = "tel-national";
   mobileInput.title = "Enter a valid 10-digit Indian mobile number.";
   mobileLabel.append(mobileInput);
+  const messageLabel = document.createElement("label");
+  messageLabel.textContent = "Enquiry Message";
+  const messageInput = document.createElement("textarea");
+  messageInput.name = "message";
+  messageInput.required = true;
+  messageInput.maxLength = 2000;
+  messageInput.rows = 4;
+  messageInput.placeholder = "What would you like to know about this scooter?";
+  messageInput.autocomplete = "off";
+  messageInput.addEventListener("input", () => messageInput.setCustomValidity(""));
+  messageLabel.append(messageInput);
   const status = document.createElement("p");
   status.className = "enquiry-status";
   status.setAttribute("role", "status");
@@ -101,7 +81,7 @@ function createDialog() {
   whatsapp.rel = "noopener noreferrer";
   whatsapp.hidden = true;
   actions.append(submit, whatsapp);
-  form.append(nameLabel, mobileLabel, status, actions);
+  form.append(nameLabel, mobileLabel, messageLabel, status, actions);
   panel.append(close, title, bike, form);
   dialog.append(panel);
   document.body.append(dialog);
@@ -121,6 +101,7 @@ function createDialog() {
     status.classList.remove("is-error");
     const customerName = nameInput.value.trim();
     const mobileNumber = mobileInput.value.trim();
+    const enquiryMessage = messageInput.value.trim();
     if (!customerName) {
       nameInput.setCustomValidity("Enter your name.");
       nameInput.reportValidity();
@@ -131,6 +112,16 @@ function createDialog() {
       return;
     }
     nameInput.setCustomValidity("");
+    if (!enquiryMessage) {
+      messageInput.setCustomValidity("Enter your enquiry message.");
+      messageInput.reportValidity();
+      submitting = false;
+      close.disabled = false;
+      submit.disabled = false;
+      submit.textContent = "Submit Enquiry";
+      return;
+    }
+    messageInput.setCustomValidity("");
     let whatsappPopup = null;
     try {
       whatsappPopup = window.open("about:blank", "_blank");
@@ -138,20 +129,21 @@ function createDialog() {
       whatsappPopup = null;
     }
     try {
-      const bikeId = await resolveSqlBikeId(
-        selectedBikeName,
-        selectedBikeCatalogModel
-      );
-      const response = await callPublicApi("/api/enquiries", {
-        method: "POST",
-        body: {
-          requestId,
-          name: customerName,
-          phone: mobileNumber,
-          bikeId
-        }
+      if (!publicFunctions) {
+        throw new Error("The enquiry service is not configured.");
+      }
+
+      const submitEnquiry = httpsCallable(publicFunctions, "crmSubmitBikeEnquiry");
+      const response = await submitEnquiry({
+        requestId,
+        bikeId: selectedBikeId,
+        bikeName: selectedBikeName,
+        bikeModel: selectedBikeCatalogModel,
+        name: customerName,
+        mobile: mobileNumber,
+        message: enquiryMessage
       });
-      if (response?.data?.requestId !== requestId) {
+      if (response?.data?.submitted !== true) {
         throw new Error("Your enquiry could not be confirmed. Please try again.");
       }
 
@@ -159,7 +151,8 @@ function createDialog() {
         scooterName: selectedBikeName,
         scooterModel: selectedBikeCatalogModel,
         customerName,
-        mobileNumber
+        mobileNumber,
+        enquiryMessage
       });
       whatsapp.href = whatsappUrl;
       form.querySelectorAll("label").forEach((label) => { label.hidden = true; });
@@ -198,6 +191,7 @@ function createDialog() {
 
 export function openEnquiryForm(bike) {
   if (!dialog) createDialog();
+  selectedBikeId = String(bike?.id || "").trim();
   selectedBikeName = String(bike?.name || "").trim();
   selectedBikeCatalogModel = String(bike?.model || "").trim();
   selectedBikeModel = selectedBikeCatalogModel || selectedBikeName;

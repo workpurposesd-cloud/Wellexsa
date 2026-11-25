@@ -7,7 +7,8 @@ test("builds the requested WhatsApp draft for manual sending", () => {
     scooterName: "[BIKE NAME]",
     scooterModel: "[BIKE MODEL]",
     customerName: "[CUSTOMER NAME]",
-    mobileNumber: "[CUSTOMER MOBILE NUMBER]"
+    mobileNumber: "[CUSTOMER MOBILE NUMBER]",
+    enquiryMessage: "I would like to know the current price and range."
   }));
   assert.equal(url.origin + url.pathname, "https://wa.me/919989992230");
   assert.equal(url.searchParams.get("text"), [
@@ -18,6 +19,6 @@ test("builds the requested WhatsApp draft for manual sending", () => {
     "Customer Name: [CUSTOMER NAME]",
     "Mobile Number: [CUSTOMER MOBILE NUMBER]",
     "",
-    "Enquiry: Please share the price, availability and more details."
+    "Enquiry: I would like to know the current price and range."
   ].join("\n"));
 });

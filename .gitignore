@@ -1,5 +1,6 @@
 /functions/.env*
 functions/node_modules/
+/cloudflare-public/
 node_modules/
 firestore-debug.log
 .env
