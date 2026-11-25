@@ -1,3 +1,5 @@
+import { isFirebaseAuthEmulatorEnabled } from "./env.js";
+
 export const DISPOSABLE_MYSQL_DATABASE_NAME = "wellexsa_it_20261123_1752";
 
 export function assertDisposableDatabaseName(database) {
@@ -61,10 +63,15 @@ function parseInteger(value, name, defaultValue, min, max) {
 }
 
 export function loadDatabaseConfig(source = process.env) {
+  const database = requiredString(source, "MYSQL_DATABASE");
+  if (isFirebaseAuthEmulatorEnabled(source)) {
+    assertDisposableDatabaseName(database);
+  }
+
   return Object.freeze({
     host: requiredString(source, "MYSQL_HOST"),
     port: parseInteger(source.MYSQL_PORT, "MYSQL_PORT", undefined, 1, 65535),
-    database: requiredString(source, "MYSQL_DATABASE"),
+    database,
     user: requiredString(source, "MYSQL_USER"),
     password: requiredPassword(source),
     connectionLimit: parseInteger(source.MYSQL_CONNECTION_LIMIT, "MYSQL_CONNECTION_LIMIT", 10, 1, 100),

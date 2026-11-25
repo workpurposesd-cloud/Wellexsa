@@ -18,7 +18,8 @@ async function startEnquiryServer({
   principal,
   pool = { async execute() { return [[], []]; } },
   withTransaction = async (operation) => operation(pool),
-  phoneEncryptor
+  phoneEncryptor,
+  phoneDecryptor
 }) {
   const app = express();
   app.use(express.json());
@@ -26,6 +27,7 @@ async function startEnquiryServer({
     getPool: () => pool,
     withTransaction,
     phoneEncryptor,
+    phoneDecryptor,
     verifyToken: (request, _response, next) => {
       request.auth = { uid: "test-uid" };
       next();
@@ -86,9 +88,15 @@ test("staff enquiry list is restricted to their assignments", async () => {
         calls.push({ sql, parameters });
         return sql.includes("COUNT(*)")
           ? [[{ total: "1" }], []]
-          : [[enquiryRow()], []];
+          : [[enquiryRow({
+            phone_ciphertext: Buffer.from([1]),
+            encryption_nonce: Buffer.from([2]),
+            authentication_tag: Buffer.from([3]),
+            encryption_key_version: 1
+          })], []];
       }
-    }
+    },
+    phoneDecryptor: () => "+919876543210"
   });
 
   const response = await fetch(`${url}/crm/enquiries?status=new`);
@@ -98,7 +106,8 @@ test("staff enquiry list is restricted to their assignments", async () => {
   assert.deepEqual(calls.map(({ parameters }) => parameters), [["7", "new"], ["7", "new", 25, 0]]);
   assert.equal(calls.every(({ sql }) => sql.includes("assigned_staff_user_id = ?")), true);
   assert.equal(body.data.enquiries[0].id, "32");
-  assert.equal(Object.keys(body.data.enquiries[0]).some((key) => /phone|cipher|key/i.test(key)), false);
+  assert.equal(body.data.enquiries[0].mobile, "+919876543210");
+  assert.equal(JSON.stringify(body).includes("phone_ciphertext"), false);
 });
 
 test("staff enquiry detail cannot reveal unassigned enquiries", async () => {
@@ -117,7 +126,7 @@ test("staff enquiry detail cannot reveal unassigned enquiries", async () => {
 
   assert.equal(response.status, 404);
   assert.deepEqual(call.parameters, ["32", "7"]);
-  assert.equal(/phone_ciphertext|encryption_nonce|authentication_tag/.test(call.sql), false);
+  assert.match(call.sql, /assigned_staff_user_id = \?/);
 });
 
 test("enquiry history checks assigned scope before returning status records", async () => {
@@ -205,6 +214,7 @@ test("Owner reassignment validates active Staff and records the assignment chang
 
   assert.equal(response.status, 200);
   assert.match(calls[1].sql, /FROM staff_profiles/);
+  assert.match(calls[1].sql, /crm\.enquiries\.read\.assigned/);
   assert.deepEqual(calls[1].parameters, ["7"]);
   assert.deepEqual(calls[2].parameters, ["7", "32"]);
   assert.match(calls[2].sql, /assigned_staff_user_id = \?/);
@@ -251,12 +261,15 @@ test("Staff cannot reassign enquiries", async () => {
 
 test("public enquiry stores only encrypted phone fields and returns no contact details", async () => {
   const calls = [];
+  const requestId = "c1aa6629-8e33-4e8e-9af0-60721dce9f27";
   const url = await startEnquiryServer({
     principal: null,
     pool: {
       async execute(sql, parameters) {
         calls.push({ sql, parameters });
+        if (sql.includes("FROM enquiries WHERE request_id")) return [[], []];
         if (sql.includes("FROM bikes")) return [[{ id: "5", name: "Bike", model: "EU-1" }], []];
+        if (sql.includes("FROM staff_profiles")) return [[], []];
         return [{ insertId: "40" }, []];
       }
     },
@@ -274,6 +287,7 @@ test("public enquiry stores only encrypted phone fields and returns no contact d
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      requestId,
       name: "Rider",
       email: "rider@example.com",
       phone: "+919876543210",
@@ -283,14 +297,187 @@ test("public enquiry stores only encrypted phone fields and returns no contact d
   const body = await response.json();
 
   assert.equal(response.status, 201);
-  assert.match(body.data.requestId, /^[0-9a-f-]{36}$/i);
-  assert.deepEqual(calls[0].parameters, ["5"]);
-  assert.equal(calls[1].parameters.includes("+919876543210"), false);
-  assert.equal(calls[1].parameters.some(Buffer.isBuffer), true);
-  assert.equal(calls[1].parameters[6], 1);
-  assert.equal(calls[1].parameters[9], "5");
-  assert.equal(calls[1].parameters[10], "EU-1");
+  assert.equal(body.data.requestId, requestId);
+  assert.deepEqual(calls[1].parameters, ["5"]);
+  const insert = calls.find(({ sql }) => sql.includes("INSERT INTO enquiries"));
+  assert.equal(insert.parameters.includes("+919876543210"), false);
+  assert.equal(insert.parameters.some(Buffer.isBuffer), true);
+  assert.equal(insert.parameters[6], 1);
+  assert.equal(insert.parameters[9], "5");
+  assert.equal(insert.parameters[10], "EU-1");
+  assert.equal(insert.parameters[11], null);
   assert.equal(JSON.stringify(body).includes("phone"), false);
+});
+
+test("public enquiry is idempotent for a matching request ID", async () => {
+  const calls = [];
+  const requestId = "c1aa6629-8e33-4e8e-9af0-60721dce9f27";
+  const phoneLookupHmac = Buffer.alloc(32, 6);
+  const url = await startEnquiryServer({
+    principal: null,
+    pool: {
+      async execute(sql, parameters) {
+        calls.push({ sql, parameters });
+        if (sql.includes("FROM enquiries WHERE request_id")) {
+          return [[{
+            customer_name_snapshot: "Rider",
+            customer_email: null,
+            bike_id: "5",
+            phone_lookup_hmac: phoneLookupHmac,
+            lookup_key_version: 1
+          }], []];
+        }
+        return [[], []];
+      }
+    },
+    phoneEncryptor: () => ({
+      ciphertext: Buffer.from([1, 2, 3]),
+      nonce: Buffer.alloc(12, 4),
+      authenticationTag: Buffer.alloc(16, 5),
+      encryptionKeyVersion: 1,
+      lookupHmac: phoneLookupHmac,
+      lookupKeyVersion: 1
+    })
+  });
+
+  const response = await fetch(`${url}/enquiries`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requestId,
+      name: "Rider",
+      phone: "+919876543210",
+      bikeId: "5"
+    })
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).data.requestId, requestId);
+  assert.equal(calls.length, 1);
+});
+
+test("public enquiry assigns to active Staff with assigned-read permission", async () => {
+  const calls = [];
+  const url = await startEnquiryServer({
+    principal: null,
+    pool: {
+      async execute(sql, parameters) {
+        calls.push({ sql, parameters });
+        if (sql.includes("FROM enquiries WHERE request_id")) return [[], []];
+        if (sql.includes("FROM bikes")) return [[{ id: "5", name: "Bike", model: "EU-1" }], []];
+        if (sql.includes("FROM staff_profiles")) return [[{ user_id: "7" }], []];
+        return [{ insertId: "40" }, []];
+      }
+    },
+    phoneEncryptor: () => ({
+      ciphertext: Buffer.from([1, 2, 3]),
+      nonce: Buffer.alloc(12, 4),
+      authenticationTag: Buffer.alloc(16, 5),
+      encryptionKeyVersion: 1,
+      lookupHmac: Buffer.alloc(32, 6),
+      lookupKeyVersion: 1
+    })
+  });
+
+  const response = await fetch(`${url}/enquiries`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requestId: "c1aa6629-8e33-4e8e-9af0-60721dce9f27",
+      name: "Rider",
+      phone: "+919876543210",
+      bikeId: "5"
+    })
+  });
+  const assignmentQuery = calls.find(({ sql }) => sql.includes("FROM staff_profiles"));
+  const insert = calls.find(({ sql }) => sql.includes("INSERT INTO enquiries"));
+
+  assert.equal(response.status, 201);
+  assert.match(assignmentQuery.sql, /crm\.enquiries\.read\.assigned/);
+  assert.equal(insert.parameters[11], "7");
+});
+
+test("assigned Staff can read decrypted phone only for their enquiry", async () => {
+  const calls = [];
+  const url = await startEnquiryServer({
+    principal: staffPrincipal,
+    pool: {
+      async execute(sql, parameters) {
+        calls.push({ sql, parameters });
+        return [[enquiryRow({
+          phone_ciphertext: Buffer.from([1]),
+          encryption_nonce: Buffer.from([2]),
+          authentication_tag: Buffer.from([3]),
+          encryption_key_version: 1
+        })], []];
+      }
+    },
+    phoneDecryptor: () => "+919876543210"
+  });
+
+  const response = await fetch(`${url}/crm/enquiries/32`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.match(calls[0].sql, /e\.assigned_staff_user_id = \?/);
+  assert.deepEqual(calls[0].parameters, ["32", "7"]);
+  assert.equal(body.data.enquiry.mobile, "+919876543210");
+  assert.equal(JSON.stringify(body).includes("phone_ciphertext"), false);
+});
+
+test("Owner can see an unassigned enquiry and its authorized contact details", async () => {
+  const calls = [];
+  const url = await startEnquiryServer({
+    principal: ownerPrincipal,
+    pool: {
+      async execute(sql, parameters) {
+        calls.push({ sql, parameters });
+        return sql.includes("COUNT(*)")
+          ? [[{ total: "1" }], []]
+          : [[enquiryRow({
+            assigned_staff_user_id: null,
+            phone_ciphertext: Buffer.from([1]),
+            encryption_nonce: Buffer.from([2]),
+            authentication_tag: Buffer.from([3]),
+            encryption_key_version: 1
+          })], []];
+      }
+    },
+    phoneDecryptor: () => "+919876543210"
+  });
+
+  const response = await fetch(`${url}/crm/enquiries`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(calls.some(({ sql }) => /assigned_staff_user_id = \?/.test(sql)), false);
+  assert.equal(body.data.enquiries[0].assignedStaffUserId, null);
+  assert.equal(body.data.enquiries[0].mobile, "+919876543210");
+});
+
+test("Owner without all-read permission is limited to their assigned enquiries", async () => {
+  const calls = [];
+  const url = await startEnquiryServer({
+    principal: {
+      id: "1",
+      role: "owner",
+      permissions: ["crm.enquiries.read.assigned"]
+    },
+    pool: {
+      async execute(sql, parameters) {
+        calls.push({ sql, parameters });
+        return sql.includes("COUNT(*)")
+          ? [[{ total: "1" }], []]
+          : [[enquiryRow({ assigned_staff_user_id: "1" })], []];
+      }
+    }
+  });
+
+  const response = await fetch(`${url}/crm/enquiries`);
+
+  assert.equal(response.status, 200);
+  assert.equal(calls.every(({ sql }) => sql.includes("assigned_staff_user_id = ?")), true);
+  assert.equal(calls[0].parameters[0], "1");
 });
 
 test("public enquiry submission fails closed when phone encryption is unavailable", async () => {

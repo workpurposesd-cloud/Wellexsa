@@ -3,6 +3,7 @@ import {
   collection, collectionGroup, getDocs, limit, orderBy, query, where
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
+import { callApiWithAuth } from "./api.js";
 import { crmAuth, crmDb, crmFunctions } from "./crm-config.js";
 
 const expectedRole = document.body.dataset.crmRole;
@@ -578,9 +579,13 @@ function renderEnquiries() {
   state.enquiries.forEach((enquiry) => {
     const row = make("tr");
     appendCell(row, enquiry.customerName);
-    const phone = make("a", "", enquiry.mobile);
-    phone.href = `tel:${enquiry.mobile}`;
-    appendCell(row, phone);
+    if (enquiry.mobile) {
+      const phone = make("a", "", enquiry.mobile);
+      phone.href = `tel:${enquiry.mobile}`;
+      appendCell(row, phone);
+    } else {
+      appendCell(row, "—");
+    }
     appendCell(row, enquiry.bikeModel);
     appendCell(row, dateText(enquiry.createdAt, true));
     appendCell(row, enquiry.customerType === "existing" ? "Existing customer" : "New customer");
@@ -589,6 +594,41 @@ function renderEnquiries() {
   });
   const empty = document.getElementById("crm-enquiry-empty");
   if (empty) empty.hidden = state.enquiries.length > 0;
+}
+
+async function loadMySqlEnquiries() {
+  const pageSize = 100;
+  const first = await callApiWithAuth(
+    crmAuth,
+    `/api/crm/enquiries?page=1&pageSize=${pageSize}`
+  );
+  const pagination = first?.data?.pagination;
+  if (!Array.isArray(first?.data?.enquiries) ||
+    !Number.isSafeInteger(pagination?.total) || pagination.total < 0) {
+    throw new Error("The MySQL enquiry response is invalid.");
+  }
+
+  const enquiries = [...first.data.enquiries];
+  if (pagination.total > pageSize) {
+    const second = await callApiWithAuth(
+      crmAuth,
+      `/api/crm/enquiries?page=2&pageSize=${pageSize}`
+    );
+    if (!Array.isArray(second?.data?.enquiries)) {
+      throw new Error("The MySQL enquiry response is invalid.");
+    }
+    enquiries.push(...second.data.enquiries);
+  }
+
+  return enquiries.map((enquiry) => ({
+    id: `mysql:${enquiry.id}`,
+    customerName: enquiry.customerName || "",
+    mobile: enquiry.mobile || "",
+    bikeModel: enquiry.bikeModel || "",
+    createdAt: enquiry.createdAt,
+    customerType: enquiry.customerId ? "existing" : "new",
+    status: enquiry.status
+  }));
 }
 
 function renderPurchased() {
@@ -906,6 +946,14 @@ function renderAll() {
 
 async function loadData() {
   message.textContent = "Loading CRM records…";
+  const mysqlEnquiriesPromise = (
+    ["owner", "staff"].includes(state.role)
+      ? loadMySqlEnquiries()
+      : Promise.resolve([])
+  ).then(
+    (enquiries) => ({ enquiries, error: null }),
+    (error) => ({ enquiries: [], error })
+  );
   try {
     const [customers, enquiries, purchases, intakes, models, staff, completed] = await Promise.all([
       can("customers:view")
@@ -927,7 +975,21 @@ async function loadData() {
         : Promise.resolve({ docs: [] })
     ]);
     state.customers = customers.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
-    state.enquiries = enquiries.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
+    const fireStoreEnquiries = enquiries.docs.map((snapshot) => ({
+      id: snapshot.id,
+      ...snapshot.data()
+    }));
+    const mysqlResult = await mysqlEnquiriesPromise;
+    if (mysqlResult.error) {
+      console.error("Could not load MySQL enquiries", {
+        code: mysqlResult.error?.code || mysqlResult.error?.name || "unknown"
+      });
+    }
+    state.enquiries = [...fireStoreEnquiries, ...mysqlResult.enquiries]
+      .sort((a, b) =>
+        (dateValue(b.createdAt)?.getTime() || 0) -
+        (dateValue(a.createdAt)?.getTime() || 0)
+      );
     state.purchases = purchases.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
     state.intakes = intakes.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
     state.completedFollowUps = completed.docs.map((snapshot) => ({
@@ -941,10 +1003,26 @@ async function loadData() {
       const audit = await getDocs(query(collection(crmDb, "crmAuditEvents"), orderBy("createdAt", "desc"), limit(50)));
       state.audit = audit.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
     }
-    message.textContent = "";
+    message.textContent = mysqlResult.error
+      ? "New MySQL enquiries could not be loaded. Existing CRM records are still available."
+      : "";
     renderAll();
   } catch (error) {
-    message.textContent = "CRM records could not be loaded. Your access may have changed; sign in again or contact the Owner.";
+    const mysqlResult = await mysqlEnquiriesPromise;
+    state.enquiries = [
+      ...state.enquiries.filter((enquiry) => !String(enquiry.id).startsWith("mysql:")),
+      ...mysqlResult.enquiries
+    ].sort((a, b) =>
+      (dateValue(b.createdAt)?.getTime() || 0) -
+      (dateValue(a.createdAt)?.getTime() || 0)
+    );
+    if (mysqlResult.error) {
+      console.error("Could not load MySQL enquiries", {
+        code: mysqlResult.error?.code || mysqlResult.error?.name || "unknown"
+      });
+    }
+    message.textContent = "Some CRM records could not be loaded. Existing records remain available where possible.";
+    renderAll();
     console.error("Could not load CRM data", { code: error?.code || error?.name || "unknown" });
   }
 }

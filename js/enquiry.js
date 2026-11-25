@@ -1,12 +1,47 @@
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
-import { app, isFirebaseConfigured } from "./firebase-config.js";
+import { callPublicApi } from "./api.js";
 import { buildWhatsAppUrl } from "./enquiry-whatsapp.js";
 
-const functions = isFirebaseConfigured ? getFunctions(app, "us-central1") : null;
+const CATALOG_PAGE_SIZE = 100;
 let dialog;
+let selectedBikeName = "";
 let selectedBikeModel = "";
+let selectedBikeCatalogModel = "";
 let requestId = "";
 let submitting = false;
+
+async function resolveSqlBikeId(name, model) {
+  if (!name || !model) {
+    throw new Error("This scooter could not be matched to the showroom catalogue.");
+  }
+
+  const matches = [];
+  let page = 1;
+  let totalPages = 1;
+  while (page <= totalPages) {
+    const response = await callPublicApi(
+      `/api/catalog/bikes?page=${page}&pageSize=${CATALOG_PAGE_SIZE}`
+    );
+    const bikes = response?.data?.bikes;
+    const total = response?.data?.pagination?.total;
+    if (!Array.isArray(bikes) || !Number.isSafeInteger(total) || total < 0) {
+      throw new Error("The showroom catalogue could not be checked. Please try again.");
+    }
+
+    totalPages = Math.ceil(total / CATALOG_PAGE_SIZE);
+    for (const bike of bikes) {
+      if (bike?.name === name && bike?.model === model) matches.push(bike);
+      if (matches.length > 1) {
+        throw new Error("This scooter has more than one showroom catalogue match. Please contact the showroom.");
+      }
+    }
+    page += 1;
+  }
+
+  if (matches.length !== 1 || typeof matches[0]?.id !== "string") {
+    throw new Error("This scooter is not uniquely available in the showroom catalogue.");
+  }
+  return matches[0].id;
+}
 
 function createDialog() {
   dialog = document.createElement("dialog");
@@ -77,11 +112,6 @@ function createDialog() {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!form.reportValidity() || submitting) return;
-    if (!functions) {
-      status.textContent = "Enquiries are temporarily unavailable. Please try again later.";
-      status.classList.add("is-error");
-      return;
-    }
 
     submitting = true;
     submit.disabled = true;
@@ -101,23 +131,55 @@ function createDialog() {
       return;
     }
     nameInput.setCustomValidity("");
+    let whatsappPopup = null;
     try {
-      const response = await httpsCallable(functions, "crmSubmitBikeEnquiry")({
-        requestId,
-        name: customerName,
-        mobile: mobileNumber,
-        bikeModel: selectedBikeModel
+      whatsappPopup = window.open("about:blank", "_blank");
+    } catch {
+      whatsappPopup = null;
+    }
+    try {
+      const bikeId = await resolveSqlBikeId(
+        selectedBikeName,
+        selectedBikeCatalogModel
+      );
+      const response = await callPublicApi("/api/enquiries", {
+        method: "POST",
+        body: {
+          requestId,
+          name: customerName,
+          phone: mobileNumber,
+          bikeId
+        }
       });
-      if (response.data?.submitted !== true) {
+      if (response?.data?.requestId !== requestId) {
         throw new Error("Your enquiry could not be confirmed. Please try again.");
       }
 
-      whatsapp.href = buildWhatsAppUrl(selectedBikeModel, customerName, mobileNumber);
+      const whatsappUrl = buildWhatsAppUrl({
+        scooterName: selectedBikeName,
+        scooterModel: selectedBikeCatalogModel,
+        customerName,
+        mobileNumber
+      });
+      whatsapp.href = whatsappUrl;
       form.querySelectorAll("label").forEach((label) => { label.hidden = true; });
       submit.hidden = true;
-      status.textContent = "Thank you. Your enquiry has been sent to the showroom.";
       whatsapp.hidden = false;
+      let popupOpened = false;
+      if (whatsappPopup && !whatsappPopup.closed) {
+        try {
+          whatsappPopup.location.replace(whatsappUrl);
+          popupOpened = true;
+        } catch {
+          whatsappPopup.close();
+          whatsappPopup = null;
+        }
+      }
+      status.textContent = popupOpened
+        ? "Thank you. Your enquiry has been saved. Review and send your WhatsApp message."
+        : "Your enquiry has been saved. WhatsApp could not open automatically; use the WhatsApp Us button.";
     } catch (error) {
+      if (whatsappPopup && !whatsappPopup.closed) whatsappPopup.close();
       const message = typeof error?.message === "string" ? error.message.trim() : "";
       const isInternalError = error?.code === "functions/internal" || message.toLowerCase() === "internal";
       status.textContent = isInternalError
@@ -136,7 +198,9 @@ function createDialog() {
 
 export function openEnquiryForm(bike) {
   if (!dialog) createDialog();
-  selectedBikeModel = String(bike?.model || bike?.name || "").trim();
+  selectedBikeName = String(bike?.name || "").trim();
+  selectedBikeCatalogModel = String(bike?.model || "").trim();
+  selectedBikeModel = selectedBikeCatalogModel || selectedBikeName;
   requestId = crypto.randomUUID();
   dialog.querySelector("#enquiry-title").textContent = "Enquire Now";
   dialog.querySelector(".enquiry-bike").textContent = selectedBikeModel;

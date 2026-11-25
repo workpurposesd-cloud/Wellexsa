@@ -101,8 +101,12 @@ function backendError(payload, response) {
   return new ApiError(message, response.status, code);
 }
 
-export async function callApi(path, options = {}) {
-  if (!auth?.currentUser) {
+async function requestApi(path, options, authInstance) {
+  if (!options || typeof options !== "object" || Array.isArray(options)) {
+    throw new TypeError("Fetch options must be an object.");
+  }
+
+  if (authInstance && !authInstance.currentUser) {
     throw new ApiError(
       "Sign in before calling the backend.",
       401,
@@ -111,31 +115,32 @@ export async function callApi(path, options = {}) {
   }
 
   let token;
-  try {
-    token = await auth.currentUser.getIdToken();
-  } catch {
-    throw new ApiError(
-      "Firebase authentication could not be verified.",
-      401,
-      "UNAUTHENTICATED"
-    );
-  }
+  if (authInstance) {
+    try {
+      token = await authInstance.currentUser.getIdToken();
+    } catch {
+      throw new ApiError(
+        "Firebase authentication could not be verified.",
+        401,
+        "UNAUTHENTICATED"
+      );
+    }
 
-  if (typeof token !== "string" || !token) {
-    throw new ApiError(
-      "Firebase authentication could not be verified.",
-      401,
-      "UNAUTHENTICATED"
-    );
-  }
-
-  if (!options || typeof options !== "object" || Array.isArray(options)) {
-    throw new TypeError("Fetch options must be an object.");
+    if (typeof token !== "string" || !token) {
+      throw new ApiError(
+        "Firebase authentication could not be verified.",
+        401,
+        "UNAUTHENTICATED"
+      );
+    }
   }
 
   const headers = new Headers(options.headers);
-  // Authorization is reserved: always replace caller input with the current Firebase ID token.
-  headers.set("Authorization", `Bearer ${token}`);
+  if (authInstance) {
+    headers.set("Authorization", `Bearer ${token}`);
+  } else {
+    headers.delete("Authorization");
+  }
 
   let body = options.body;
   if (isPlainObjectOrArray(body)) {
@@ -189,4 +194,26 @@ export async function callApi(path, options = {}) {
   }
 
   return payload;
+}
+
+export function callApi(path, options = {}) {
+  if (!auth?.currentUser) {
+    return Promise.reject(new ApiError(
+      "Sign in before calling the backend.",
+      401,
+      "UNAUTHENTICATED"
+    ));
+  }
+  return requestApi(path, options, auth);
+}
+
+export function callApiWithAuth(authInstance, path, options = {}) {
+  if (!authInstance || typeof authInstance !== "object") {
+    throw new TypeError("A Firebase Auth instance is required.");
+  }
+  return requestApi(path, options, authInstance);
+}
+
+export function callPublicApi(path, options = {}) {
+  return requestApi(path, options, null);
 }

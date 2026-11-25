@@ -4,7 +4,7 @@
 
 The Express API now contains tested local-development endpoints for identity, customers, staff, catalogue, enquiries, follow-ups, offline showroom sales, reports, activity logs, homepage slides, and public website settings. Tests use mock database/Firebase dependencies. The routes have not been integration-tested against the live MySQL schema.
 
-The existing CRM frontend still uses Firestore and Firebase Functions. It has not been switched to these APIs. Do not remove or disable that path until database migrations/seeds are approved and the API is verified against a disposable MySQL 8.0.42 database.
+The existing CRM continues to use Firestore and Firebase Functions for legacy records and workflows. New website enquiries are submitted to MySQL, and the Staff/Owner enquiry list merges authorized MySQL enquiries with the existing Firestore records. Do not remove or disable the legacy path.
 
 Responses use:
 
@@ -23,7 +23,7 @@ or:
 | Method | Path | Behavior |
 | --- | --- | --- |
 | GET | `/api/health` | Confirms API availability; no database check. |
-| POST | `/api/enquiries` | Submits a public enquiry for a published bike. Requires phone-encryption keys; stores only encrypted phone fields and returns a request ID. |
+| POST | `/api/enquiries` | Submits a public enquiry for a published bike using its MySQL catalogue ID. Requires phone-encryption keys; stores only encrypted phone fields and returns a request ID. A supplied UUID request ID makes matching retries idempotent. |
 | GET | `/api/catalog/brands` | Lists active brands. |
 | GET | `/api/catalog/categories` | Lists active categories. |
 | GET | `/api/catalog/bikes` | Lists published bikes; supports `page`, `pageSize`, `brand`, and `category`. |
@@ -69,7 +69,7 @@ All `/api/crm/*` routes require a verified Firebase ID token and a mapped active
 | GET | `/api/crm/website-settings` | `website_settings.manage` (Owner). |
 | PUT | `/api/crm/website-settings/:settingKey` | `website_settings.manage` (Owner). Setting values are JSON, limited to 64 KB. |
 
-The API does not expose encrypted phone columns or decryption keys. A phone-read workflow and media upload/replacement API are not implemented. Bike image management is therefore not available through the catalogue endpoints.
+New enquiries are assigned to an active Staff member with assigned-read permission when one is available; if none qualifies, the enquiry remains unassigned and is visible only to Owners with all-read permission. CRM enquiry responses include the decrypted mobile number only after the caller is authorized and the enquiry is in their allowed scope: Owners with all-read permission can see unassigned enquiries, while Staff are limited to enquiries assigned to their own active profile. Encrypted phone columns and decryption keys are never returned. The public submission response contains no customer contact details. Media upload/replacement is not implemented; bike image management is therefore not available through the catalogue endpoints.
 
 ## Operational limits and verification
 

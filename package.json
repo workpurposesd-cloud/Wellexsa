@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "emulators:auth": "firebase emulators:start --only auth --project wellexsa",
+    "emulators:firestore": "firebase emulators:start --only firestore --project wellexsa-demo",
     "test:firebase-emulator": "node --test tests/firebase-emulator.test.js",
     "lint:crm": "node --check js/crm-config.js && node --check js/crm-login-errors.js && node --check js/crm-login.js && node --check js/crm-dashboard.js && node --check js/enquiry.js && node --check js/enquiry-whatsapp.js && node --check js/homepage.js && node --check js/bike-details.js && node --check scripts/provision-crm-owner.mjs && node --check scripts/migrate-crm-customers.mjs && npm --prefix functions run lint",
     "test:crm-auth": "node --test tests/crm-login-errors.test.js",

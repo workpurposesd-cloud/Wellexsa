@@ -5,8 +5,56 @@ import { createApp } from "../src/app.js";
 import { loadEnv } from "../src/config/env.js";
 import { createVerifyFirebaseToken } from "../src/middleware/verifyFirebaseToken.js";
 
+const startupEnvironmentKeys = [
+  "NODE_ENV",
+  "PORT",
+  "CORS_ORIGINS",
+  "FIREBASE_PROJECT_ID",
+  "WELLEXSA_USE_AUTH_EMULATOR",
+  "FIREBASE_AUTH_EMULATOR_HOST",
+  "npm_lifecycle_event"
+];
+
+function withStartupEnvironment(values, emulatorStartup, operation) {
+  const previousEnvironment = new Map(
+    startupEnvironmentKeys.map((key) => [key, process.env[key]])
+  );
+  for (const key of startupEnvironmentKeys) {
+    if (Object.prototype.hasOwnProperty.call(values, key)) {
+      process.env[key] = values[key];
+    } else {
+      delete process.env[key];
+    }
+  }
+
+  process.env.npm_lifecycle_event = emulatorStartup ? "start:emulator" : "start";
+
+  try {
+    return operation();
+  } finally {
+    for (const [key, value] of previousEnvironment) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
+const validStartupEnvironment = {
+  NODE_ENV: "development",
+  PORT: "3100",
+  CORS_ORIGINS: "http://localhost:5500",
+  FIREBASE_PROJECT_ID: "test-firebase-project"
+};
+
 const app = createApp({
-  corsOrigins: ["http://localhost:5500", "http://127.0.0.1:5500"]
+  corsOrigins: [
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://127.0.0.1:5000"
+  ]
 }, {
   getPool: () => ({}),
   verifyToken: createVerifyFirebaseToken(async (token) => ({
@@ -170,16 +218,24 @@ test("global error handler falls back for unknown 4xx and generic 5xx errors", a
   }
 });
 
-test("CORS allows configured origins and omits headers for others", async () => {
+test("CORS allows the local Hosting Emulator origin and omits headers for others", async () => {
   const allowed = await fetch(`${baseUrl}/api/health`, {
-    headers: { Origin: "http://localhost:5500" }
+    headers: { Origin: "http://127.0.0.1:5000" }
   });
-  const denied = await fetch(`${baseUrl}/api/health`, {
+  const deniedLoopback = await fetch(`${baseUrl}/api/health`, {
+    headers: { Origin: "http://localhost:5000" }
+  });
+  const deniedRemote = await fetch(`${baseUrl}/api/health`, {
     headers: { Origin: "https://unauthorized.example" }
   });
+  const existingAllowed = await fetch(`${baseUrl}/api/health`, {
+    headers: { Origin: "http://localhost:5500" }
+  });
 
-  assert.equal(allowed.headers.get("access-control-allow-origin"), "http://localhost:5500");
-  assert.equal(denied.headers.get("access-control-allow-origin"), null);
+  assert.equal(allowed.headers.get("access-control-allow-origin"), "http://127.0.0.1:5000");
+  assert.equal(deniedLoopback.headers.get("access-control-allow-origin"), null);
+  assert.equal(deniedRemote.headers.get("access-control-allow-origin"), null);
+  assert.equal(existingAllowed.headers.get("access-control-allow-origin"), "http://localhost:5500");
 });
 
 test("environment loading requires explicit, valid CORS origins", () => {
@@ -200,6 +256,78 @@ test("environment loading requires explicit, valid CORS origins", () => {
     nodeEnv: "test",
     port: 3100,
     corsOrigins: ["http://localhost:5500"],
-    firebaseProjectId: "test-firebase-project"
+    firebaseProjectId: "test-firebase-project",
+    firebaseAuthEmulatorEnabled: false
+  });
+});
+
+test("normal startup accepts configuration without emulator variables", () => {
+  withStartupEnvironment(validStartupEnvironment, false, () => {
+    assert.equal(loadEnv().firebaseAuthEmulatorEnabled, false);
+  });
+  withStartupEnvironment({
+    ...validStartupEnvironment,
+    WELLEXSA_USE_AUTH_EMULATOR: "false"
+  }, false, () => {
+    assert.equal(loadEnv().firebaseAuthEmulatorEnabled, false);
+  });
+});
+
+test("normal startup rejects an inherited emulator opt-in", () => {
+  withStartupEnvironment({
+    ...validStartupEnvironment,
+    WELLEXSA_USE_AUTH_EMULATOR: "true"
+  }, false, () => {
+    assert.throws(
+      () => loadEnv(),
+      /available only through the emulator startup script/
+    );
+  });
+});
+
+test("normal startup rejects an inherited emulator host", () => {
+  withStartupEnvironment({
+    ...validStartupEnvironment,
+    FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099"
+  }, false, () => {
+    assert.throws(() => loadEnv(), /requires WELLEXSA_USE_AUTH_EMULATOR=true/);
+  });
+});
+
+test("emulator startup accepts explicit opt-in and the exact loopback host", () => {
+  withStartupEnvironment({
+    ...validStartupEnvironment,
+    WELLEXSA_USE_AUTH_EMULATOR: "true",
+    FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099"
+  }, true, () => {
+    assert.equal(loadEnv().firebaseAuthEmulatorEnabled, true);
+  });
+});
+
+test("emulator startup rejects a missing opt-in or invalid host", () => {
+  withStartupEnvironment({
+    ...validStartupEnvironment,
+    FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099"
+  }, true, () => {
+    assert.throws(() => loadEnv(), /requires WELLEXSA_USE_AUTH_EMULATOR=true/);
+  });
+  withStartupEnvironment({
+    ...validStartupEnvironment,
+    WELLEXSA_USE_AUTH_EMULATOR: "true",
+    FIREBASE_AUTH_EMULATOR_HOST: "localhost:9099"
+  }, true, () => {
+    assert.throws(() => loadEnv(), /FIREBASE_AUTH_EMULATOR_HOST must be exactly/);
+  });
+});
+
+test("emulator startup rejects production environments", () => {
+  withStartupEnvironment({
+    ...validStartupEnvironment,
+    NODE_ENV: "production",
+    CORS_ORIGINS: "https://wellexsa.example",
+    WELLEXSA_USE_AUTH_EMULATOR: "true",
+    FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099"
+  }, true, () => {
+    assert.throws(() => loadEnv(), /not allowed in production/);
   });
 });

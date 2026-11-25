@@ -2,7 +2,10 @@ import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { loadEnv } from "./env.js";
 
-const { firebaseProjectId } = loadEnv();
+const { firebaseProjectId, firebaseAuthEmulatorEnabled } = loadEnv();
+if (firebaseAuthEmulatorEnabled) {
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+}
 const initializedApps = getApps();
 const existingApp = initializedApps.find((app) => app.options.projectId === firebaseProjectId) ||
   initializedApps.find((app) => app.name === "[DEFAULT]");

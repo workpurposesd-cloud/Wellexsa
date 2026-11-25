@@ -35,6 +35,40 @@ test("loads valid database settings and safe pool defaults", () => {
   });
 });
 
+test("emulator database configuration accepts only the disposable database", () => {
+  const emulatorEnvironment = {
+    ...validEnvironment,
+    WELLEXSA_USE_AUTH_EMULATOR: "true",
+    MYSQL_DATABASE: DISPOSABLE_MYSQL_DATABASE_NAME
+  };
+  assert.equal(loadDatabaseConfig(emulatorEnvironment).database, DISPOSABLE_MYSQL_DATABASE_NAME);
+
+  for (const database of ["wellexsa", "wellexsa_it_another", "development"]) {
+    assert.throws(
+      () => loadDatabaseConfig({ ...emulatorEnvironment, MYSQL_DATABASE: database }),
+      /MYSQL_DATABASE must be exactly/
+    );
+  }
+});
+
+test("emulator database rejection happens before pool creation", () => {
+  let poolFactoryCalls = 0;
+  const manager = createPoolManager({
+    configLoader: () => loadDatabaseConfig({
+      ...validEnvironment,
+      WELLEXSA_USE_AUTH_EMULATOR: "true",
+      MYSQL_DATABASE: "wellexsa"
+    }),
+    poolFactory() {
+      poolFactoryCalls += 1;
+      return {};
+    }
+  });
+
+  assert.throws(() => manager.getPool(), /MYSQL_DATABASE must be exactly/);
+  assert.equal(poolFactoryCalls, 0);
+});
+
 test("migration configuration requires distinct migration credentials", () => {
   assert.deepEqual(loadMigrationDatabaseConfig({
     MYSQL_HOST: "127.0.0.1",
